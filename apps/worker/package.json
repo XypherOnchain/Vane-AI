@@ -1,0 +1,17 @@
+{
+  "name": "@vane/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "build": "echo ok",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo ok",
+    "test": "echo ok"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

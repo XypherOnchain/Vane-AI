@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatUsd, type TokenScan } from "@vane/shared";
+import { formatUsd, type TokenOverview } from "@vane/shared-types";
 import { apiGet } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export default async function ReportPage({
     id: string;
     tokenAddress: string;
     summary: string;
-    payload: TokenScan;
+    payload: TokenOverview;
   } | null = null;
   try {
     report = await apiGet(`/v1/reports/${id}`);
@@ -24,41 +24,39 @@ export default async function ReportPage({
 
   if (!report) {
     return (
-      <div className="container" style={{ padding: "3rem 0" }}>
-        <h1>Report not found</h1>
+      <div className="px-4 py-12 md:px-8">
+        <h1 className="text-2xl font-bold">Report not found</h1>
       </div>
     );
   }
 
   const t = report.payload;
   return (
-    <div className="container" style={{ padding: "2.5rem 0 4rem" }}>
-      <p className="mono muted">SHAREABLE INVESTIGATION · {report.id}</p>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>
-        ${t.symbol} · Score {t.vaneScore.total}
+    <div className="px-4 py-8 pb-24 md:px-8">
+      <p className="font-mono text-xs text-[var(--color-muted)]">SHAREABLE · {report.id}</p>
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">
+        ${t.symbol} · Integrity {t.integrity.total}
       </h1>
-      <p style={{ maxWidth: 720, lineHeight: 1.6 }}>{report.summary}</p>
-      <div className="grid-metrics" style={{ marginTop: "1.5rem" }}>
+      <p className="mt-4 max-w-2xl leading-relaxed">{report.summary}</p>
+      <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
           ["FDV", formatUsd(t.fdvUsd)],
           ["Liquidity", formatUsd(t.liquidityUsd)],
-          ["Connected", `${t.connectedSupplyPct}%`],
+          ["Connected", `${t.probableConnectedSupplyPct}%`],
           ["Holders", String(t.holders)],
         ].map(([k, v]) => (
-          <div key={k} className="panel">
-            <div className="muted" style={{ fontSize: "0.75rem" }}>
-              {k}
-            </div>
-            <div style={{ fontFamily: "var(--font-display)", fontWeight: 700 }}>{v}</div>
+          <div key={k} className="border-t border-[var(--color-line)] pt-3">
+            <div className="text-xs text-[var(--color-muted)]">{k}</div>
+            <div className="font-[family-name:var(--font-display)] text-xl font-bold">{v}</div>
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: "1.5rem" }}>
-        <Link href={`/token/${t.address}`} className="btn btn-primary">
-          Open full scan
+      <div className="mt-6 flex gap-3">
+        <Link href={`/token/${t.address}`} className="text-[var(--color-accent)]">
+          Full scan
         </Link>
-        <Link href={`/graph/${t.address}`} className="btn">
-          Open graph
+        <Link href={`/graph/${t.address}`} className="text-[var(--color-muted)]">
+          Graph
         </Link>
       </div>
     </div>

@@ -8,12 +8,12 @@
     "build": "tsc",
     "start": "node --env-file=../../.env dist/main.js",
     "typecheck": "tsc --noEmit",
-    "lint": "echo ok"
+    "lint": "echo ok",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@vane/chain": "workspace:*",
-    "@vane/shared": "workspace:*",
-    "dotenv": "^17.4.2",
+    "@vane/config": "workspace:*",
     "ioredis": "^5.6.0",
     "pg": "^8.14.1",
     "viem": "^2.28.0"
@@ -22,6 +22,7 @@
     "@types/node": "^22.13.10",
     "@types/pg": "^8.11.11",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   }
 }

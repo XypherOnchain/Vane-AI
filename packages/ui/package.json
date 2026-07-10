@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/tokens.css"
-  },
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
   "scripts": {
     "build": "echo ok",
     "typecheck": "echo ok",
-    "lint": "echo ok"
+    "lint": "echo ok",
+    "test": "echo ok"
   }
 }

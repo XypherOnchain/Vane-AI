@@ -10,7 +10,7 @@ async function hit(path: string) {
 
 async function main() {
   console.log(`Load testing ${api} — ${total} requests, concurrency ${concurrency}`);
-  const paths = ["/health", "/v1/radar", "/v1/tokens/0x8a2e897abb6bf1d77c61cb3fa6c093ac71dc0efd2d"];
+  const paths = ["/health", "/v1/radar", "/v1/tokens/0x8a2e897abb6bf1d77c61cb3fa6c093ac71dc0efd"];
   let i = 0;
   let ok = 0;
   let limited = 0;

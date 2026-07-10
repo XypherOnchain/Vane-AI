@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { SiteHeader } from "@/components/SiteHeader";
+import { AppShell } from "@/components/AppShell";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -24,16 +24,14 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Vane — Know who is behind the token",
   description:
-    "The live intelligence network for Robinhood Chain. Trace wallets, detect hidden clusters, monitor every launch.",
+    "The intelligence layer for Robinhood Chain. Trace wallets, detect hidden clusters, analyze developers, monitor every launch.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${syne.variable} ${plex.variable} ${mono.variable}`}>
-      <body>
-        <div className="atmosphere" aria-hidden />
-        <SiteHeader />
-        <main>{children}</main>
+      <body className="min-h-screen font-[family-name:var(--font-body)] text-[var(--color-fg)]">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

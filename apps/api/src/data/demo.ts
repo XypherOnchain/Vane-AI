@@ -1,18 +1,18 @@
 import type {
   ClusterSummary,
-  ContractIntel,
+  IntegrityScore,
+  MomentumScore,
+  DataConfidence,
+  HolderRow,
+  RadarCard,
+  ScanFinding,
+  TokenOverview,
+  WalletDna,
   GraphEdge,
   GraphNode,
-  HolderRow,
-  PreviousLaunch,
-  RadarCard,
-  ScoreBreakdown,
-  TokenScan,
-  WalletDna,
-} from "@vane/shared";
+} from "@vane/shared-types";
 
-/** Canonical demo CA for UI/bot polish (Rick-style trench token) */
-export const DEMO_NASDAQ = "0x8a2e897abb6bf1d77c61cb3fa6c093ac71dc0efd2d";
+export const DEMO_TOKEN = "0x8a2e897abb6bf1d77c61cb3fa6c093ac71dc0efd";
 
 function addr(n: number): string {
   return `0x${n.toString(16).padStart(40, "0")}`;
@@ -22,41 +22,52 @@ const deployer = addr(0xa1);
 const funder = addr(0xb2);
 const clusterWallets = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(addr);
 
-export function buildDemoScore(): ScoreBreakdown {
+export function buildIntegrity(): IntegrityScore {
   return {
     total: 63,
-    contractIntegrity: 18,
-    distribution: 7,
-    developerHistory: 8,
-    liquidityQuality: 12,
-    marketIntegrity: 6,
-    walletQuality: 5,
-    momentum: 7,
-    social: 0,
+    contractSafety: 18,
+    distributionQuality: 10,
+    liquidityQuality: 14,
+    developerHistory: 10,
+    marketIntegrity: 11,
+    version: "integrity.v1",
     evidence: {
-      contractIntegrity: ["Ownership renounced", "No mint function detected", "Transfer tax 0%"],
-      distribution: [
-        "Top 10 visible holders: 18.2%",
-        "Probable connected cluster: +8.5% → 26.7% combined",
+      contractSafety: ["Ownership renounced", "No mint detected", "Transfer tax 0%"],
+      distributionQuality: [
+        "Top-10 visible (ex-LP): 18.2%",
+        "Probable connected cluster: 26.7%",
       ],
-      developerHistory: [
-        "Deployer funded by shared source",
-        "2 previous launches; one -94% after coordinated sell",
-      ],
-      liquidityQuality: ["Liquidity $12.1K", "LP not locked — elevated removal risk"],
-      marketIntegrity: ["Buy/sell ratio elevated", "Repeated wallet participation moderate"],
-      walletQuality: ["19% fresh wallets", "Avg wallet age 31 weeks"],
-      momentum: ["+3K% 1h", "261 holders in 48m", "Unique buyers accelerating"],
-      social: ["Social signals not yet verified"],
+      liquidityQuality: ["Liquidity $12.1K", "LP unlocked — removal risk"],
+      developerHistory: ["2 prior launches", "One prior launch −94% after coordinated sell"],
+      marketIntegrity: ["Buy/sell skew elevated", "Repeated wallet participation moderate"],
     },
   };
 }
 
-export function buildDemoCluster(): ClusterSummary {
+export function buildMomentum(): MomentumScore {
+  return {
+    total: 78,
+    version: "momentum.v1",
+    evidence: ["+3K% 1h move", "261 holders in 48m", "Unique buyers accelerating"],
+  };
+}
+
+export function buildConfidence(): DataConfidence {
+  return {
+    level: "medium",
+    score: 72,
+    reasons: ["Market data ready", "Graph indexed", "Contract source unverified"],
+  };
+}
+
+export function buildCluster(): ClusterSummary {
   return {
     id: "cluster-demo-1",
     confidence: 0.87,
+    classification: "shared_funding",
     supplyPct: 26.7,
+    confirmedSupplyPct: 8.2,
+    probableSupplyPct: 26.7,
     walletCount: 14,
     wallets: clusterWallets,
     signals: {
@@ -66,61 +77,75 @@ export function buildDemoCluster(): ClusterSummary {
       historicalCoordination: "strong",
       commonExit: "confirmed",
     },
+    evidenceIds: ["ev-fund-1", "ev-block-1", "ev-exit-1"],
   };
 }
 
-export function buildDemoHolders(): HolderRow[] {
+export function buildHolders(): HolderRow[] {
   return [
-    { address: addr(0xc0), pctSupply: 24.4, balance: "244000000", isLp: true },
-    { address: clusterWallets[0], pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
-    { address: clusterWallets[1], pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
-    { address: clusterWallets[2], pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
-    { address: clusterWallets[3], pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
+    { address: addr(0xc0), pctSupply: 24.4, balance: "244000000", isLp: true, label: "LP" },
+    { address: clusterWallets[0]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
+    { address: clusterWallets[1]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
+    { address: clusterWallets[2]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
+    { address: clusterWallets[3]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
     { address: addr(0xd1), pctSupply: 1.8, balance: "18000000" },
     { address: addr(0xd2), pctSupply: 1.5, balance: "15000000" },
-    { address: deployer, pctSupply: 1.2, balance: "12000000" },
+    { address: deployer, pctSupply: 1.2, balance: "12000000", label: "Deployer" },
     { address: addr(0xd3), pctSupply: 1.1, balance: "11000000" },
     { address: addr(0xd4), pctSupply: 1.0, balance: "10000000" },
   ];
 }
 
-export function buildDemoContract(): ContractIntel {
-  return {
-    verified: false,
-    ownershipRenounced: true,
-    upgradeable: false,
-    mintable: false,
-    freezable: false,
-    blacklist: false,
-    transferTaxBps: 0,
-    maxTxPct: null,
-    liquidityLocked: false,
-  };
-}
-
-export function buildDemoLaunches(): PreviousLaunch[] {
+export function buildFindings(token: string): ScanFinding[] {
   return [
     {
-      address: addr(0xe1),
-      symbol: "HOODP",
-      athFdvUsd: 420_000,
-      outcomePct: -94,
-      launchedAt: new Date(Date.now() - 12 * 86400000).toISOString(),
+      id: "f1",
+      tokenAddress: token,
+      ruleId: "ownership.renounced",
+      ruleVersion: "1.0.0",
+      severity: "info",
+      title: "Ownership renounced",
+      summary: "Owner() returns the zero address.",
+      technicalDetails: "owner() == address(0)",
+      confidence: 0.99,
+      status: "confirmed",
+      evidenceIds: ["ev-owner-1"],
+      createdAt: new Date().toISOString(),
     },
     {
-      address: addr(0xe2),
-      symbol: "RHT",
-      athFdvUsd: 88_000,
-      outcomePct: -61,
-      launchedAt: new Date(Date.now() - 28 * 86400000).toISOString(),
+      id: "f2",
+      tokenAddress: token,
+      ruleId: "liquidity.unlocked",
+      ruleVersion: "1.0.0",
+      severity: "medium",
+      title: "LP unlocked",
+      summary: "Primary LP tokens are not locked or burned.",
+      technicalDetails: "LP holder is an EOA with transfer capability",
+      confidence: 0.9,
+      status: "confirmed",
+      evidenceIds: ["ev-lp-1"],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "f3",
+      tokenAddress: token,
+      ruleId: "distribution.cluster",
+      ruleVersion: "1.0.0",
+      severity: "high",
+      title: "Probable connected supply",
+      summary: "14 wallets share a funding source and early coordinated buys.",
+      technicalDetails: "shared_funding + same_block + historical_coordination",
+      confidence: 0.87,
+      status: "probable",
+      evidenceIds: ["ev-fund-1", "ev-block-1"],
+      createdAt: new Date().toISOString(),
     },
   ];
 }
 
-export function buildDemoTokenScan(address?: string): TokenScan {
-  const a = (address ?? DEMO_NASDAQ).toLowerCase();
-  const score = buildDemoScore();
-  const cluster = buildDemoCluster();
+export function buildTokenOverview(address?: string): TokenOverview {
+  const a = (address ?? DEMO_TOKEN).toLowerCase();
+  const cluster = buildCluster();
   return {
     address: a,
     chainId: 4663,
@@ -131,7 +156,8 @@ export function buildDemoTokenScan(address?: string): TokenScan {
     marketCapUsd: 75_300,
     fdvUsd: 75_300,
     liquidityUsd: 12_100,
-    volumeUsd: 185_000,
+    volume1hUsd: 185_000,
+    volume24hUsd: 410_000,
     buys1h: 1100,
     sells1h: 781,
     holders: 261,
@@ -141,85 +167,76 @@ export function buildDemoTokenScan(address?: string): TokenScan {
     athMinutesAgo: 33,
     deployer,
     deployerFunding: funder,
-    previousLaunches: buildDemoLaunches(),
-    topHolders: buildDemoHolders(),
+    launchpad: "Noxa",
+    processingState: "GRAPH_READY",
+    topHolders: buildHolders(),
     connectedSupplyPct: 26.7,
+    confirmedConnectedSupplyPct: 8.2,
+    probableConnectedSupplyPct: 26.7,
     freshWalletPct: 19,
-    securityTags: ["MAE", "GMG", "BSD", "BBW", "BLO", "EXP", "TW"],
-    contract: buildDemoContract(),
-    vaneScore: score,
+    integrity: buildIntegrity(),
+    momentum: buildMomentum(),
+    dataConfidence: buildConfidence(),
     cluster,
+    findings: buildFindings(a),
     summary:
-      "This token has elevated distribution risk. The publicly visible top 10 holders control 18.2% of supply. However, Vane identified 14 additional wallets that were funded by the same source and purchased during the first four blocks. Together, this probable cluster controls 26.7% of supply. The funding wallet also interacted with two previous token deployers. One previous launch lost 94% of its value after cluster wallets sold within the same 12-minute period. Current activity: Three wallets in the cluster began transferring tokens six minutes ago.",
-    indexing: false,
+      "Vane detected elevated distribution risk. Fourteen wallets with a shared funding source collectively control 26.7% of supply. The contract itself contains no critical transfer restrictions, and liquidity has remained thin relative to volume during the last hour.",
+    summaryEvidenceIds: ["ev-fund-1", "ev-owner-1", "ev-lp-1"],
+    warnings: [
+      {
+        text: "Probable connected wallets control 26.7% of supply.",
+        href: `/graph/${a}`,
+        severity: "high",
+      },
+    ],
   };
 }
 
-export function buildDemoGraph(tokenAddress: string): {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-} {
-  const holders = buildDemoHolders();
+export function buildGraph(tokenAddress: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const holders = buildHolders();
   const nodes: GraphNode[] = [
-    {
-      id: deployer,
-      address: deployer,
-      size: 40,
-      label: "Deployer",
-      isDeployer: true,
-    },
-    {
-      id: funder,
-      address: funder,
-      size: 50,
-      label: "Shared funder",
-    },
-    ...holders.map((h, i) => ({
+    { id: deployer, address: deployer, size: 40, category: "deployer", label: "Deployer" },
+    { id: funder, address: funder, size: 50, category: "deployer_linked", label: "Shared funder" },
+    ...holders.map((h) => ({
       id: h.address,
       address: h.address,
       size: Math.max(12, h.pctSupply * 4),
-      label: h.isLp ? "LP" : undefined,
+      category: (h.isLp
+        ? "liquidity_pool"
+        : h.clusterId
+          ? "probable_cluster"
+          : "unclassified") as GraphNode["category"],
+      label: h.label,
       clusterId: h.clusterId,
     })),
   ];
-
   const edges: GraphEdge[] = [
     {
       id: "e1",
       from: funder,
       to: deployer,
-      relation: "confirmed_connection",
+      relation: "funded",
       confidence: 0.99,
       confirmed: true,
       why: "Direct ETH funding before deployment",
-      when: new Date(Date.now() - 50 * 60000).toISOString(),
+      evidenceIds: ["ev-fund-deployer"],
       txHashes: [`0x${"ab".repeat(32)}`],
     },
     ...clusterWallets.slice(0, 8).map((w, i) => ({
       id: `ef-${i}`,
       from: funder,
       to: w,
-      relation: "shared_funding_source" as const,
+      relation: "shared_funder",
       confidence: 0.91,
       confirmed: true,
       why: "Funded from same source within 3 minutes of launch",
-      when: new Date(Date.now() - 47 * 60000).toISOString(),
-    })),
-    ...clusterWallets.slice(0, 5).map((w, i) => ({
-      id: `eb-${i}`,
-      from: w,
-      to: clusterWallets[(i + 1) % 5],
-      relation: "repeated_coordinated_behavior" as const,
-      confidence: 0.78,
-      confirmed: false,
-      why: "Same-block buys with similar sizing",
+      evidenceIds: ["ev-fund-1"],
     })),
   ];
-
   return { nodes, edges };
 }
 
-export function buildDemoWallet(address: string): WalletDna {
+export function buildWallet(address: string): WalletDna {
   return {
     address: address.toLowerCase(),
     dnaClass: "Early Launch Trader",
@@ -235,12 +252,11 @@ export function buildDemoWallet(address: string): WalletDna {
     completedTotal: 29,
     associatedClusterSize: 4,
     recentBehaviorNote: "Position sizes have increased 220% over the last seven days",
-    frequentlyTradedDevelopers: [deployer],
   };
 }
 
-export function buildDemoRadar(): RadarCard[] {
-  const base = buildDemoTokenScan();
+export function buildRadar(): RadarCard[] {
+  const base = buildTokenOverview();
   return [
     {
       address: base.address,
@@ -248,16 +264,21 @@ export function buildDemoRadar(): RadarCard[] {
       symbol: base.symbol,
       marketCapUsd: base.marketCapUsd,
       liquidityUsd: base.liquidityUsd,
-      volumeUsd: base.volumeUsd,
+      volume1hUsd: base.volume1hUsd,
       buys1h: base.buys1h,
       sells1h: base.sells1h,
       uniqueBuyers: base.uniqueBuyers,
       holders: base.holders,
       ageMinutes: base.ageMinutes,
-      connectedSupplyPct: base.connectedSupplyPct,
-      vaneScore: base.vaneScore.total,
+      connectedSupplyPct: base.probableConnectedSupplyPct,
+      integrityScore: base.integrity.total,
+      momentumScore: base.momentum.total,
+      launchpad: base.launchpad,
+      status: "Live",
+      processingState: base.processingState,
       alerts: ["Cluster transferring", "Elevated connected supply"],
       developerStatus: "holding",
+      dataReady: { market: true, holders: true, contract: true, graph: true },
     },
     {
       address: addr(0xf1),
@@ -265,16 +286,21 @@ export function buildDemoRadar(): RadarCard[] {
       symbol: "HOODP",
       marketCapUsd: 210_000,
       liquidityUsd: 42_000,
-      volumeUsd: 890_000,
+      volume1hUsd: 890_000,
       buys1h: 420,
       sells1h: 310,
       uniqueBuyers: 180,
       holders: 512,
       ageMinutes: 180,
       connectedSupplyPct: 9.4,
-      vaneScore: 71,
+      integrityScore: 71,
+      momentumScore: 64,
+      launchpad: "Noxa",
+      status: "Graduating",
+      processingState: "PUBLISHED",
       alerts: [],
       developerStatus: "holding",
+      dataReady: { market: true, holders: true, contract: true, graph: true },
     },
     {
       address: addr(0xf2),
@@ -282,16 +308,21 @@ export function buildDemoRadar(): RadarCard[] {
       symbol: "RICK",
       marketCapUsd: 55_000,
       liquidityUsd: 18_000,
-      volumeUsd: 120_000,
+      volume1hUsd: 120_000,
       buys1h: 90,
       sells1h: 70,
       uniqueBuyers: 64,
       holders: 140,
       ageMinutes: 25,
       connectedSupplyPct: 31.2,
-      vaneScore: 41,
-      alerts: ["High connected supply", "Fresh wallets 38%"],
+      integrityScore: 41,
+      momentumScore: 55,
+      launchpad: "Noxa",
+      status: "New",
+      processingState: "SCAN_READY",
+      alerts: ["High connected supply"],
       developerStatus: "selling",
+      dataReady: { market: true, holders: true, contract: false, graph: false },
     },
     {
       address: addr(0xf3),
@@ -299,16 +330,21 @@ export function buildDemoRadar(): RadarCard[] {
       symbol: "VGATE",
       marketCapUsd: 340_000,
       liquidityUsd: 95_000,
-      volumeUsd: 1_200_000,
+      volume1hUsd: 1_200_000,
       buys1h: 800,
       sells1h: 620,
       uniqueBuyers: 410,
       holders: 1200,
       ageMinutes: 720,
       connectedSupplyPct: 11.0,
-      vaneScore: 68,
+      integrityScore: 68,
+      momentumScore: 81,
+      launchpad: "Virtuals",
+      status: "Graduated",
+      processingState: "PUBLISHED",
       alerts: ["Smart wallets entering"],
       developerStatus: "holding",
+      dataReady: { market: true, holders: true, contract: true, graph: true },
     },
   ];
 }

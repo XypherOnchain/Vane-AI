@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { GraphEdge, GraphNode } from "@vane/shared";
+import type { GraphEdge, GraphNode } from "@vane/shared-types";
 import { apiGet } from "@/lib/api";
 import { BubbleGraph } from "@/components/BubbleGraph";
 
@@ -19,27 +19,22 @@ export default async function GraphPage({
   }
 
   return (
-    <div className="container" style={{ padding: "2rem 0 4rem" }}>
-      <p className="mono muted" style={{ fontSize: "0.78rem" }}>
-        VANE GRAPH
-      </p>
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em" }}>
+    <div className="px-4 py-8 pb-24 md:px-8">
+      <p className="font-mono text-[11px] text-[var(--color-muted)]">VANE GRAPH</p>
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight">
         Holder relationships
       </h1>
-      <p className="muted" style={{ maxWidth: 640 }}>
-        Connections are observed relationships with evidence — not automatic proof of common
-        ownership.
+      <p className="mt-2 max-w-xl text-sm text-[var(--color-muted)]">
+        Connections are observed relationships with evidence — not automatic proof of common ownership.
       </p>
-      <div style={{ margin: "1rem 0" }}>
-        <Link href={`/token/${address}`} className="btn">
-          Back to scan
-        </Link>
+      <Link href={`/token/${address}`} className="mt-4 inline-block text-sm text-[var(--color-accent)]">
+        ← Back to scan
+      </Link>
+      <div className="mt-6">
+        {graph ? <BubbleGraph nodes={graph.nodes} edges={graph.edges} /> : (
+          <p className="text-[var(--color-muted)]">Graph unavailable.</p>
+        )}
       </div>
-      {graph ? (
-        <BubbleGraph nodes={graph.nodes} edges={graph.edges} />
-      ) : (
-        <p className="muted">Graph unavailable.</p>
-      )}
     </div>
   );
 }

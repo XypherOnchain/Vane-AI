@@ -1,29 +1,31 @@
 {
-  "name": "vane",
+  "name": "vane-ai",
   "private": true,
   "version": "0.1.0",
-  "description": "Vane AI — The live intelligence network for Robinhood Chain",
-  "scripts": {
-    "dev": "pnpm -r --parallel --filter @vane/web --filter @vane/api --filter @vane/bot --filter @vane/indexer run dev",
-    "dev:web": "pnpm --filter @vane/web dev",
-    "dev:api": "pnpm --filter @vane/api dev",
-    "dev:bot": "pnpm --filter @vane/bot dev",
-    "dev:indexer": "pnpm --filter @vane/indexer dev",
-    "build": "pnpm -r run build",
-    "typecheck": "pnpm -r run typecheck",
-    "lint": "pnpm -r run lint",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
-    "loadtest": "pnpm --filter @vane/api loadtest"
-  },
+  "description": "Vane AI — The intelligence layer for Robinhood Chain",
+  "packageManager": "pnpm@10.29.3",
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@10.29.3",
+  "scripts": {
+    "dev": "turbo run dev --parallel --filter=@vane/web --filter=@vane/api --filter=@vane/indexer --filter=@vane/worker",
+    "dev:web": "turbo run dev --filter=@vane/web --filter=@vane/api",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @vane/database migrate",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "dotenv": "^17.4.2",
-    "tsx": "^4.23.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^22.13.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.4.4",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   }
 }

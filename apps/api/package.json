@@ -9,13 +9,14 @@
     "start": "node --env-file=../../.env dist/main.js",
     "typecheck": "tsc --noEmit",
     "lint": "echo ok",
+    "test": "vitest run --passWithNoTests",
     "loadtest": "tsx --env-file=../../.env scripts/loadtest.ts"
   },
   "dependencies": {
     "@vane/chain": "workspace:*",
-    "@vane/shared": "workspace:*",
+    "@vane/config": "workspace:*",
+    "@vane/shared-types": "workspace:*",
     "cors": "^2.8.5",
-    "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "ioredis": "^5.6.0",
@@ -29,6 +30,7 @@
     "@types/node": "^22.13.10",
     "@types/pg": "^8.11.11",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   }
 }

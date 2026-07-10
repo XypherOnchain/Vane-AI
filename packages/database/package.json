@@ -1,0 +1,13 @@
+{
+  "name": "@vane/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "echo 'Apply infrastructure/sql/001_init.sql via docker compose init or psql'",
+    "build": "echo ok",
+    "typecheck": "echo ok",
+    "lint": "echo ok",
+    "test": "echo ok"
+  }
+}

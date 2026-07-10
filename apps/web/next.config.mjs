@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@vane/shared"],
+  transpilePackages: ["@vane/shared-types"],
   reactStrictMode: true,
 };
 

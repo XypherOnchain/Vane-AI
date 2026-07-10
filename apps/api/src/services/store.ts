@@ -2,22 +2,25 @@ import { v4 as uuid } from "uuid";
 import type {
   RadarCard,
   SearchResult,
-  TokenScan,
+  TokenOverview,
   WalletDna,
-} from "@vane/shared";
-import { isLikelyAddress, isLikelyTx } from "@vane/shared";
+} from "@vane/shared-types";
+import { isLikelyAddress, isLikelyTx } from "@vane/shared-types";
 import {
-  DEMO_NASDAQ,
-  buildDemoGraph,
-  buildDemoRadar,
-  buildDemoTokenScan,
-  buildDemoWallet,
+  DEMO_TOKEN,
+  buildGraph,
+  buildRadar,
+  buildTokenOverview,
+  buildWallet,
 } from "../data/demo.js";
 import { cacheGet, cacheSet } from "./cache.js";
 
-const tokenStore = new Map<string, TokenScan>();
+const tokenStore = new Map<string, TokenOverview>();
 const walletStore = new Map<string, WalletDna>();
-const reports = new Map<string, { id: string; tokenAddress: string; summary: string; payload: unknown; createdAt: string }>();
+const reports = new Map<
+  string,
+  { id: string; tokenAddress: string; summary: string; payload: unknown; createdAt: string }
+>();
 const alerts = new Map<
   string,
   {
@@ -32,87 +35,67 @@ const alerts = new Map<
 >();
 
 function seed() {
-  const demo = buildDemoTokenScan(DEMO_NASDAQ);
+  const demo = buildTokenOverview(DEMO_TOKEN);
   tokenStore.set(demo.address, demo);
-  for (const card of buildDemoRadar()) {
+  for (const card of buildRadar()) {
     if (!tokenStore.has(card.address)) {
-      const t = buildDemoTokenScan(card.address);
+      const t = buildTokenOverview(card.address);
       t.name = card.name;
       t.symbol = card.symbol;
       t.marketCapUsd = card.marketCapUsd;
       t.liquidityUsd = card.liquidityUsd;
-      t.volumeUsd = card.volumeUsd;
+      t.volume1hUsd = card.volume1hUsd;
+      t.probableConnectedSupplyPct = card.connectedSupplyPct;
       t.connectedSupplyPct = card.connectedSupplyPct;
-      t.vaneScore = { ...t.vaneScore, total: card.vaneScore };
+      t.integrity = { ...t.integrity, total: card.integrityScore };
+      t.momentum = { ...t.momentum, total: card.momentumScore };
       t.holders = card.holders;
       t.ageMinutes = card.ageMinutes;
+      t.processingState = card.processingState;
+      t.launchpad = card.launchpad;
       tokenStore.set(card.address, t);
     }
   }
-  walletStore.set(demo.deployer, buildDemoWallet(demo.deployer));
-  if (demo.cluster) {
-    for (const w of demo.cluster.wallets.slice(0, 3)) {
-      walletStore.set(w, buildDemoWallet(w));
-    }
-  }
+  walletStore.set(demo.deployer, buildWallet(demo.deployer));
 }
 
 seed();
 
-export function upsertToken(scan: TokenScan) {
-  tokenStore.set(scan.address.toLowerCase(), scan);
-}
-
-export function getToken(address: string): TokenScan | null {
+export function getToken(address: string): TokenOverview | null {
   const key = address.toLowerCase();
-  return tokenStore.get(key) ?? (key === DEMO_NASDAQ ? buildDemoTokenScan(key) : null);
+  return tokenStore.get(key) ?? (key === DEMO_TOKEN ? buildTokenOverview(key) : null);
 }
 
-export async function getTokenCached(address: string): Promise<TokenScan | null> {
+export async function getTokenCached(address: string): Promise<TokenOverview | null> {
   const key = `token:${address.toLowerCase()}`;
   const cached = await cacheGet(key);
-  if (cached) return JSON.parse(cached) as TokenScan;
+  if (cached) return JSON.parse(cached) as TokenOverview;
   const token = getToken(address);
   if (token) await cacheSet(key, JSON.stringify(token), 20);
   return token;
 }
 
 export function listRadar(): RadarCard[] {
-  return [...tokenStore.values()]
-    .map((t) => ({
-      address: t.address,
-      name: t.name,
-      symbol: t.symbol,
-      marketCapUsd: t.marketCapUsd,
-      liquidityUsd: t.liquidityUsd,
-      volumeUsd: t.volumeUsd,
-      buys1h: t.buys1h,
-      sells1h: t.sells1h,
-      uniqueBuyers: t.uniqueBuyers,
-      holders: t.holders,
-      ageMinutes: t.ageMinutes,
-      connectedSupplyPct: t.connectedSupplyPct,
-      vaneScore: t.vaneScore.total,
-      alerts:
-        t.connectedSupplyPct > 20
-          ? ["Elevated connected supply"]
-          : t.cluster && t.cluster.confidence > 0.8
-            ? ["Cluster watch"]
-            : [],
-      developerStatus: "holding" as const,
-    }))
-    .sort((a, b) => a.ageMinutes - b.ageMinutes);
+  return buildRadar().sort((a, b) => a.ageMinutes - b.ageMinutes);
+}
+
+export function listNewPairs(): RadarCard[] {
+  return listRadar().filter((t) => t.ageMinutes < 120);
+}
+
+export function listTrending(): RadarCard[] {
+  return [...listRadar()].sort((a, b) => b.volume1hUsd - a.volume1hUsd);
 }
 
 export function getWallet(address: string): WalletDna | null {
   const key = address.toLowerCase();
-  return walletStore.get(key) ?? (isLikelyAddress(key) ? buildDemoWallet(key) : null);
+  return walletStore.get(key) ?? (isLikelyAddress(key) ? buildWallet(key) : null);
 }
 
 export function getGraph(address: string) {
   const token = getToken(address);
   if (!token) return null;
-  return buildDemoGraph(token.address);
+  return buildGraph(token.address);
 }
 
 export function search(q: string): SearchResult[] {
@@ -125,29 +108,16 @@ export function search(q: string): SearchResult[] {
     const token = getToken(query);
     if (token) {
       return [
-        {
-          type: "token",
-          id: token.address,
-          title: `$${token.symbol}`,
-          subtitle: token.name,
-        },
+        { type: "token", id: token.address, title: `$${token.symbol}`, subtitle: token.name },
+        { type: "wallet", id: query.toLowerCase(), title: "Open as wallet", subtitle: query.toLowerCase() },
       ];
     }
-    return [
-      {
-        type: "wallet",
-        id: query.toLowerCase(),
-        title: "Wallet",
-        subtitle: query.toLowerCase(),
-      },
-    ];
+    return [{ type: "wallet", id: query.toLowerCase(), title: "Wallet", subtitle: query.toLowerCase() }];
   }
   const lower = query.toLowerCase().replace(/^\$/, "");
   return [...tokenStore.values()]
     .filter(
-      (t) =>
-        t.symbol.toLowerCase().includes(lower) ||
-        t.name.toLowerCase().includes(lower),
+      (t) => t.symbol.toLowerCase().includes(lower) || t.name.toLowerCase().includes(lower),
     )
     .slice(0, 10)
     .map((t) => ({
@@ -203,11 +173,7 @@ export function listAlerts(chatId?: string) {
   );
 }
 
-export function evaluateAlerts(): {
-  alertId: string;
-  message: string;
-  telegramChatId?: string;
-}[] {
+export function evaluateAlerts() {
   const fired: { alertId: string; message: string; telegramChatId?: string }[] = [];
   for (const a of alerts.values()) {
     if (!a.active || !a.tokenAddress) continue;
@@ -217,14 +183,7 @@ export function evaluateAlerts(): {
       fired.push({
         alertId: a.id,
         telegramChatId: a.telegramChatId,
-        message: `⚠ Cluster activity on $${t.symbol}: ${t.cluster.walletCount} wallets · ${t.connectedSupplyPct}% connected · confidence ${Math.round(t.cluster.confidence * 100)}%`,
-      });
-    }
-    if (a.kind === "dev_sell") {
-      fired.push({
-        alertId: a.id,
-        telegramChatId: a.telegramChatId,
-        message: `👁 Developer watch active for $${t.symbol} (${t.deployer})`,
+        message: `Cluster activity on $${t.symbol}: ${t.cluster.walletCount} wallets · ${t.probableConnectedSupplyPct}% probable connected`,
       });
     }
   }

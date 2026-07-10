@@ -1,61 +1,44 @@
 # Vane AI
 
-**The live intelligence network for Robinhood Chain.**
+**The intelligence layer for Robinhood Chain.**
 
 Repo: [XypherOnchain/Vane-AI](https://github.com/XypherOnchain/Vane-AI)
 
-Paste any token, wallet, or transaction. Vane explains what is happening, shows the evidence, monitors what matters, and helps the trader act.
+## Current focus
 
-## Monorepo
-
-```
-apps/web       Next.js — marketing + Scan / Radar / Graph / Agent
-apps/api       Intelligence API (rate-limited, cached)
-apps/indexer   Robinhood Chain indexer (horizontal workers)
-apps/bot       Telegram bot (Rick-density cards)
-packages/shared  Shared types + formatters
-packages/chain   Robinhood adapter (viem)
-packages/ui      Design tokens
-```
+1. **Web app first** — landing, Radar, token scan, graph, Ask Vane  
+2. Shared backend APIs  
+3. Telegram bots deferred (stubs only) until intelligence is stable  
 
 ## Quick start
 
 ```bash
-cp .env.example .env
-# set TELEGRAM_BOT_TOKEN (and optional OPENAI_API_KEY, RPC_URL)
-
+cd /Users/andrewjayyosi/CascadeProjects/Vane-AI
+cp .env.example .env   # add secrets
 pnpm install
-pnpm db:up          # Postgres + Redis (requires Docker)
-pnpm dev            # web + api + bot + indexer
+pnpm db:up             # Postgres + Redis (Docker)
+pnpm dev:web           # API + Next.js
 ```
 
 - Web: http://localhost:3000  
-- API: http://localhost:4000/health  
-- Telegram: message your bot, paste a contract  
+- API health: http://localhost:4000/health  
 
-## Launchable v1 surfaces
+## Architecture
 
-- Universal search, Radar, Token Scan, developer history
-- Top holders, connected supply, shared-funder / same-block clusters
-- Interactive graph + timeline scrub
-- Explainable Vane Score, Wallet DNA, Ask Vane (tool-calling)
-- Telegram scan cards, cluster/dev alerts, shareable reports (`/r/:id`)
+See the complete build plan. Monorepo apps:
 
-## Scale (100k+)
+- `apps/web` — complete product UI  
+- `apps/api` — shared REST API  
+- `apps/indexer` — Robinhood Chain ingestion  
+- `apps/worker` — background jobs (stub)  
+- `apps/telegram-pairs` / `apps/telegram-intelligence` — stubs  
 
-- Redis cache on hot token scans (+ in-memory fallback)
-- Express rate limiting + optional `API_KEY`
-- Indexer sharded workers (`INDEXER_WORKERS`)
-- Postgres schema + connection pooling
-- `/health`, `/metrics`, `pnpm loadtest`
+## Phase status
 
-## Security
+- Phase 0 foundations: in progress / local runnable  
+- Web main surfaces: landing, radar, new-pairs, trending, token tabs, graph, wallet, ask  
+- Telegram: deferred  
 
-- No seed phrases / private keys on servers
-- AI never signs — deterministic services own chain facts
-- Secrets in `.env` only — never commit tokens
-- Rotate any Telegram token that was shared in chat
+## Docs
 
-## License
-
-Proprietary — XypherOnchain / Vane
+- [Adding DEX / launchpad adapters](docs/adapters.md)

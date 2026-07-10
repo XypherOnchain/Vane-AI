@@ -5,33 +5,56 @@ import {
   type Chain,
   type PublicClient,
   type Transport,
+  type Hex,
 } from "viem";
+import type { VaneEnv } from "@vane/config";
 
-export interface ChainAdapterConfig {
+export interface NetworkConfig {
+  id: "robinhood-mainnet" | "robinhood-testnet";
   chainId: number;
   name: string;
   rpcUrl: string;
+  rpcBackupUrl?: string;
   wssUrl?: string;
   explorerUrl: string;
   nativeCurrency: { name: string; symbol: string; decimals: number };
 }
 
-export const ROBINHOOD_MAINNET: ChainAdapterConfig = {
-  chainId: 4663,
-  name: "Robinhood Chain",
-  rpcUrl: process.env.RPC_URL ?? "https://rpc.mainnet.chain.robinhood.com",
-  wssUrl: process.env.WSS_URL ?? "wss://feed.mainnet.chain.robinhood.com",
-  explorerUrl: "https://robinhoodchain.blockscout.com",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-};
+export function getNetworkConfig(env: VaneEnv, which: "mainnet" | "testnet" = env.ACTIVE_CHAIN): NetworkConfig {
+  if (which === "testnet") {
+    return {
+      id: "robinhood-testnet",
+      chainId: 46630,
+      name: "Robinhood Chain Testnet",
+      rpcUrl: env.ROBINHOOD_TESTNET_RPC_URL,
+      rpcBackupUrl: env.ROBINHOOD_TESTNET_RPC_BACKUP_URL,
+      wssUrl: env.ROBINHOOD_TESTNET_WS_URL,
+      explorerUrl: "https://explorer.testnet.chain.robinhood.com",
+      nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    };
+  }
+  return {
+    id: "robinhood-mainnet",
+    chainId: 4663,
+    name: "Robinhood Chain",
+    rpcUrl: env.ROBINHOOD_MAINNET_RPC_URL,
+    rpcBackupUrl: env.ROBINHOOD_MAINNET_RPC_BACKUP_URL,
+    wssUrl: env.ROBINHOOD_MAINNET_WS_URL,
+    explorerUrl: "https://robinhoodchain.blockscout.com",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  };
+}
 
-export function toViemChain(cfg: ChainAdapterConfig): Chain {
+export function toViemChain(cfg: NetworkConfig): Chain {
   return {
     id: cfg.chainId,
     name: cfg.name,
     nativeCurrency: cfg.nativeCurrency,
     rpcUrls: {
-      default: { http: [cfg.rpcUrl], webSocket: cfg.wssUrl ? [cfg.wssUrl] : undefined },
+      default: {
+        http: [cfg.rpcUrl, ...(cfg.rpcBackupUrl ? [cfg.rpcBackupUrl] : [])],
+        webSocket: cfg.wssUrl ? [cfg.wssUrl] : undefined,
+      },
     },
     blockExplorers: {
       default: { name: "Blockscout", url: cfg.explorerUrl },
@@ -39,82 +62,122 @@ export function toViemChain(cfg: ChainAdapterConfig): Chain {
   };
 }
 
-export type ChainAdapter = {
-  config: ChainAdapterConfig;
-  client: PublicClient;
-  createWsClient: () => PublicClient | null;
+export type ProviderHealth = {
+  primaryOk: boolean;
+  backupOk: boolean;
+  tipBlock: bigint | null;
+  latencyMs: number | null;
+  error?: string;
 };
 
-export function createRobinhoodAdapter(
-  overrides: Partial<ChainAdapterConfig> = {},
-): ChainAdapter {
-  const config: ChainAdapterConfig = { ...ROBINHOOD_MAINNET, ...overrides };
-  const chain = toViemChain(config);
-  const client = createPublicClient({
-    chain,
-    transport: http(config.rpcUrl, { batch: true, retryCount: 3 }),
-  });
+/** HTTP provider with primary → backup failover */
+export class RpcProvider {
+  readonly config: NetworkConfig;
+  private primary: PublicClient;
+  private backup: PublicClient | null;
 
-  return {
-    config,
-    client: client as PublicClient,
-    createWsClient: () => {
-      if (!config.wssUrl) return null;
-      try {
-        return createPublicClient({
+  constructor(config: NetworkConfig) {
+    this.config = config;
+    const chain = toViemChain(config);
+    this.primary = createPublicClient({
+      chain,
+      transport: http(config.rpcUrl, { batch: true, retryCount: 2, timeout: 12_000 }),
+    }) as PublicClient;
+    this.backup = config.rpcBackupUrl
+      ? (createPublicClient({
           chain,
-          transport: webSocket(config.wssUrl, { reconnect: true }) as Transport,
-        }) as PublicClient;
+          transport: http(config.rpcBackupUrl, { batch: true, retryCount: 2, timeout: 12_000 }),
+        }) as PublicClient)
+      : null;
+  }
+
+  async withClient<T>(fn: (client: PublicClient) => Promise<T>): Promise<T> {
+    try {
+      return await fn(this.primary);
+    } catch (primaryErr) {
+      if (!this.backup) throw primaryErr;
+      return await fn(this.backup);
+    }
+  }
+
+  getBlockNumber() {
+    return this.withClient((c) => c.getBlockNumber());
+  }
+
+  getBlock(args: { blockNumber: bigint; includeTransactions?: boolean }) {
+    return this.withClient((c) => c.getBlock(args));
+  }
+
+  getTransactionReceipt(hash: Hex) {
+    return this.withClient((c) => c.getTransactionReceipt({ hash }));
+  }
+
+  getLogs(...args: Parameters<PublicClient["getLogs"]>) {
+    return this.withClient((c) => c.getLogs(...args));
+  }
+
+  readContract(...args: Parameters<PublicClient["readContract"]>) {
+    return this.withClient((c) => c.readContract(...args));
+  }
+
+  createWsClient(): PublicClient | null {
+    if (!this.config.wssUrl) return null;
+    try {
+      return createPublicClient({
+        chain: toViemChain(this.config),
+        transport: webSocket(this.config.wssUrl, { reconnect: true }) as Transport,
+      }) as PublicClient;
+    } catch {
+      return null;
+    }
+  }
+
+  async healthCheck(): Promise<ProviderHealth> {
+    const t0 = Date.now();
+    let primaryOk = false;
+    let backupOk = false;
+    let tipBlock: bigint | null = null;
+    let error: string | undefined;
+    try {
+      tipBlock = await this.primary.getBlockNumber();
+      primaryOk = true;
+    } catch (e) {
+      error = (e as Error).message;
+    }
+    if (this.backup) {
+      try {
+        await this.backup.getBlockNumber();
+        backupOk = true;
+        if (tipBlock == null) tipBlock = await this.backup.getBlockNumber();
       } catch {
-        return null;
+        /* ignore */
       }
-    },
-  };
+    }
+    return {
+      primaryOk,
+      backupOk,
+      tipBlock,
+      latencyMs: primaryOk || backupOk ? Date.now() - t0 : null,
+      error,
+    };
+  }
 }
 
-/** ERC-20 minimal ABI fragments used by indexer / scan */
+export function createRobinhoodProvider(env: VaneEnv, which?: "mainnet" | "testnet") {
+  return new RpcProvider(getNetworkConfig(env, which));
+}
+
 export const erc20Abi = [
-  {
-    type: "function",
-    name: "name",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "string" }],
-  },
-  {
-    type: "function",
-    name: "symbol",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "string" }],
-  },
-  {
-    type: "function",
-    name: "decimals",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "uint8" }],
-  },
-  {
-    type: "function",
-    name: "totalSupply",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "uint256" }],
-  },
+  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+  { type: "function", name: "totalSupply", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   {
     type: "function",
     name: "balanceOf",
     stateMutability: "view",
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ type: "uint256" }],
-  },
-  {
-    type: "function",
-    name: "owner",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "address" }],
   },
   {
     type: "event",
@@ -127,14 +190,18 @@ export const erc20Abi = [
   },
 ] as const;
 
-export function explorerTokenUrl(address: string, cfg = ROBINHOOD_MAINNET): string {
+export function normalizeAddress(addr: string): string {
+  return addr.toLowerCase();
+}
+
+export function explorerTokenUrl(address: string, cfg: NetworkConfig): string {
   return `${cfg.explorerUrl}/token/${address}`;
 }
 
-export function explorerAddressUrl(address: string, cfg = ROBINHOOD_MAINNET): string {
-  return `${cfg.explorerUrl}/address/${address}`;
+export function explorerTxUrl(hash: string, cfg: NetworkConfig): string {
+  return `${cfg.explorerUrl}/tx/${hash}`;
 }
 
-export function explorerTxUrl(hash: string, cfg = ROBINHOOD_MAINNET): string {
-  return `${cfg.explorerUrl}/tx/${hash}`;
+export function explorerAddressUrl(address: string, cfg: NetworkConfig): string {
+  return `${cfg.explorerUrl}/address/${address}`;
 }

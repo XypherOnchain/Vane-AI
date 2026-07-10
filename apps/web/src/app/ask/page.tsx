@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useState, Suspense } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import type { AgentAnswer } from "@vane/shared";
+import type { AgentAnswer } from "@vane/shared-types";
 import { API } from "@/lib/api";
-import { SearchBox } from "@/components/SearchBox";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 function AskInner() {
   const params = useSearchParams();
@@ -16,7 +16,7 @@ function AskInner() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${API}/v1/agent`, {
+      const res = await fetch(`${API}/v1/ai/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q }),
@@ -28,22 +28,32 @@ function AskInner() {
   }
 
   return (
-    <div className="container" style={{ padding: "2.5rem 0 4rem" }}>
-      <h1 style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.03em" }}>Ask Vane</h1>
-      <p className="muted" style={{ maxWidth: 560, marginBottom: "1.5rem" }}>
-        Natural-language investigation with evidence citations. Include a token or wallet address.
+    <div className="px-4 py-8 pb-24 md:px-8">
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight">
+        Ask Vane
+      </h1>
+      <p className="mt-2 max-w-xl text-sm text-[var(--color-muted)]">
+        Evidence-backed answers. Include a token or wallet address when asking about a specific entity.
       </p>
-      <div style={{ maxWidth: 640, marginBottom: "2rem" }}>
-        <SearchBox />
+      <div className="mt-6 max-w-xl">
+        <GlobalSearch />
       </div>
-      <form onSubmit={onSubmit} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <input className="field" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1 }} />
-        <button className="btn btn-primary" type="submit" disabled={loading}>
+      <form onSubmit={onSubmit} className="mt-6 flex max-w-3xl flex-wrap gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="min-w-[220px] flex-1 rounded-xl border border-[var(--color-line)] bg-[rgba(14,18,24,0.9)] px-4 py-3 text-sm outline-none"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-[#04140d]"
+        >
           {loading ? "…" : "Ask"}
         </button>
       </form>
       {answer && (
-        <div className="panel" style={{ marginTop: "1.5rem", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+        <div className="mt-6 max-w-3xl whitespace-pre-wrap rounded-xl border border-[var(--color-line)] p-5 text-sm leading-relaxed">
           {answer.answer}
         </div>
       )}

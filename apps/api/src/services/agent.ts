@@ -1,29 +1,21 @@
-import type { AgentAnswer, TokenScan, WalletDna } from "@vane/shared";
-import { formatPct, formatUsd, shortAddress } from "@vane/shared";
-
-export type AgentToolName =
-  | "get_token_scan"
-  | "get_cluster"
-  | "get_wallet_dna"
-  | "get_score"
-  | "get_developer_history";
+import type { AgentAnswer, TokenOverview, WalletDna } from "@vane/shared-types";
+import { formatPct, formatUsd, shortAddress } from "@vane/shared-types";
 
 export interface AgentContext {
-  getToken: (address: string) => TokenScan | null;
+  getToken: (address: string) => TokenOverview | null;
   getWallet: (address: string) => WalletDna | null;
   webUrl: string;
 }
 
 function extractAddress(q: string): string | null {
   const m = q.match(/0x[a-fA-F0-9]{40}/);
-  return m ? m[0].toLowerCase() : null;
+  return m ? m[0]!.toLowerCase() : null;
 }
 
-/** Deterministic agent: maps NL → tools → cited answer. Never invents chain facts. */
 export function runAgent(question: string, ctx: AgentContext, focusToken?: string): AgentAnswer {
   const q = question.toLowerCase();
   const addr = extractAddress(question) ?? focusToken?.toLowerCase() ?? null;
-  const toolsUsed: AgentToolName[] = [];
+  const toolsUsed: string[] = [];
   const citations: AgentAnswer["citations"] = [];
 
   if (!addr) {
@@ -32,142 +24,94 @@ export function runAgent(question: string, ctx: AgentContext, focusToken?: strin
         "Paste a token or wallet address with your question so Vane can pull deterministic evidence.",
       citations: [],
       toolsUsed: [],
-      suggestedFollowUps: [
-        "Is this token bundled?",
-        "What is the biggest risk?",
-        "Did the developer sell?",
-      ],
+      suggestedFollowUps: ["Is this token bundled?", "What is the biggest risk?"],
     };
   }
 
   const token = ctx.getToken(addr);
   const wallet = ctx.getWallet(addr);
 
-  if (wallet && !token?.symbol) {
-    toolsUsed.push("get_wallet_dna");
-    citations.push({
-      label: `Wallet ${shortAddress(addr)}`,
-      href: `${ctx.webUrl}/wallet/${addr}`,
-    });
+  if (wallet && (!token || token.address !== addr)) {
+    toolsUsed.push("get_wallet_profile");
+    citations.push({ label: `Wallet ${shortAddress(addr)}`, href: `${ctx.webUrl}/wallet/${addr}` });
     return {
-      answer: `**Wallet DNA: ${wallet.dnaClass}**\n\nMedian entry: ${wallet.medianEntryMinutes} minutes after launch. Median position: ${wallet.medianPositionEth} ETH. Median hold: ${wallet.medianHoldMinutes} minutes. Completed profitable positions: ${wallet.completedWins} of ${wallet.completedTotal}. Frequently trades with a ${wallet.associatedClusterSize}-wallet cluster. ${wallet.recentBehaviorNote}`,
+      answer: `**Wallet DNA: ${wallet.dnaClass}**\n\nMedian entry ${wallet.medianEntryMinutes}m · hold ${wallet.medianHoldMinutes}m · ${wallet.completedWins}/${wallet.completedTotal} wins. ${wallet.recentBehaviorNote}`,
       citations,
       toolsUsed,
-      suggestedFollowUps: [
-        "Which tokens has this wallet traded recently?",
-        "Show associated cluster",
-      ],
+      suggestedFollowUps: ["Show associated cluster"],
     };
   }
 
   if (!token) {
     return {
-      answer: `No indexed intelligence for ${shortAddress(addr)} yet. Vane is still indexing or the address is unknown.`,
+      answer: `No indexed intelligence for ${shortAddress(addr)} yet.`,
       citations: [],
       toolsUsed: [],
-      suggestedFollowUps: ["Scan this token on Radar", "Check back after indexing"],
+      suggestedFollowUps: ["Open Radar"],
     };
   }
 
-  toolsUsed.push("get_token_scan");
-  citations.push({
-    label: `${token.symbol} Scan`,
-    href: `${ctx.webUrl}/token/${token.address}`,
-  });
+  toolsUsed.push("get_token_overview");
+  citations.push({ label: `${token.symbol} Scan`, href: `${ctx.webUrl}/token/${token.address}` });
 
   if (q.includes("bundl") || q.includes("cluster") || q.includes("connected")) {
-    toolsUsed.push("get_cluster");
+    toolsUsed.push("get_token_clusters");
     citations.push({
-      label: "Holder graph",
+      label: "Graph evidence",
       href: `${ctx.webUrl}/graph/${token.address}`,
+      evidenceId: token.cluster?.evidenceIds[0],
     });
     if (!token.cluster) {
       return {
-        answer: `No probable coordinated cluster detected for **$${token.symbol}** with current evidence. Connected supply estimate: ${formatPct(token.connectedSupplyPct)}.`,
+        answer: `No probable coordinated cluster detected. Probable connected supply: ${formatPct(token.probableConnectedSupplyPct)}.`,
         citations,
         toolsUsed,
-        suggestedFollowUps: ["Show top holders", "What is the Vane Score?"],
+        suggestedFollowUps: ["What is the Integrity Score?"],
       };
     }
     const c = token.cluster;
     return {
-      answer: `**Probable Coordinated Cluster — ${Math.round(c.confidence * 100)}% confidence**\n\nShared funding: ${c.signals.sharedFunding}. Same-block activity: ${c.signals.sameBlock}. Similar sizing: ${c.signals.similarSizing}. Historical coordination: ${c.signals.historicalCoordination}. Common exit: ${c.signals.commonExit}.\n\n${c.walletCount} wallets control ~${formatPct(c.supplyPct)} of supply. This is inferred from on-chain evidence — not proof of common ownership.`,
+      answer: `**${c.classification.replaceAll("_", " ")} — ${Math.round(c.confidence * 100)}% confidence**\n\nConfirmed connected supply ${formatPct(c.confirmedSupplyPct)} · Probable ${formatPct(c.probableSupplyPct)}. ${c.walletCount} wallets. Shared funding: ${c.signals.sharedFunding}. Same-block: ${c.signals.sameBlock}. This is inferred from on-chain evidence — not proof of common ownership.`,
       citations,
       toolsUsed,
-      suggestedFollowUps: [
-        "What is the biggest risk?",
-        "Monitor this cluster if it sells",
-        "Show developer history",
-      ],
+      suggestedFollowUps: ["What is the biggest risk?", "Did the developer sell?"],
     };
   }
 
-  if (q.includes("score") || q.includes("safe") || q.includes("risk")) {
-    toolsUsed.push("get_score");
-    const s = token.vaneScore;
-    const biggest =
-      s.distribution <= 10
-        ? "distribution / connected supply"
-        : s.developerHistory <= 8
-          ? "developer history"
-          : s.liquidityQuality <= 10
-            ? "liquidity quality"
-            : "market integrity";
+  if (q.includes("score") || q.includes("risk") || q.includes("safe")) {
+    toolsUsed.push("get_token_scores");
     return {
-      answer: `**Vane Score: ${s.total}/100** (explainable, not a promise of safety).\n\nContract Integrity ${s.contractIntegrity}/20 · Distribution ${s.distribution}/20 · Developer History ${s.developerHistory}/15 · Liquidity ${s.liquidityQuality}/15 · Market ${s.marketIntegrity}/10 · Wallets ${s.walletQuality}/10 · Momentum ${s.momentum}/10.\n\n**Biggest observable risk:** ${biggest}. ${token.summary.split(".").slice(0, 2).join(".")}.`,
+      answer: `**Integrity ${token.integrity.total}/100** · **Momentum ${token.momentum.total}/100** · **Data confidence ${token.dataConfidence.level}**.\n\nBiggest observable risk: distribution / connected supply. ${token.summary}`,
       citations: [
         ...citations,
         { label: "Evidence graph", href: `${ctx.webUrl}/graph/${token.address}` },
       ],
       toolsUsed,
-      suggestedFollowUps: ["Is this token bundled?", "Create a cluster-sell alert"],
+      suggestedFollowUps: ["Is this token bundled?"],
     };
   }
 
-  if (q.includes("dev") || q.includes("deployer") || q.includes("creator")) {
+  if (q.includes("dev") || q.includes("deployer")) {
     toolsUsed.push("get_developer_history");
-    const launches = token.previousLaunches
-      .map((l) => `$${l.symbol} ATH ${formatUsd(l.athFdvUsd)} → ${l.outcomePct}%`)
-      .join("; ");
     return {
-      answer: `Deployer ${shortAddress(token.deployer)}${token.deployerFunding ? ` funded by ${shortAddress(token.deployerFunding)}` : ""}. Previous launches: ${launches || "none indexed"}. Current developer holdings appear in top holders when present.`,
+      answer: `Deployer ${shortAddress(token.deployer)}${token.deployerFunding ? ` funded by ${shortAddress(token.deployerFunding)}` : ""}. Launchpad: ${token.launchpad ?? "unknown"}.`,
       citations,
       toolsUsed,
-      suggestedFollowUps: ["Did the developer sell?", "Compare previous launches"],
-    };
-  }
-
-  if (q.includes("sell") && q.includes("dev")) {
-    return {
-      answer:
-        token.topHolders.some((h) => h.address === token.deployer && h.pctSupply > 0)
-          ? `Deployer still holds ~${formatPct(token.topHolders.find((h) => h.address === token.deployer)?.pctSupply ?? 0)}. No confirmed full developer exit in the latest snapshot.`
-          : `Deployer is not in the current top-holder set. Check the live graph for recent transfers.`,
-      citations: [
-        ...citations,
-        { label: "Graph", href: `${ctx.webUrl}/graph/${token.address}` },
-      ],
-      toolsUsed,
-      suggestedFollowUps: ["Monitor developer wallet", "Show cluster activity"],
+      suggestedFollowUps: ["Did the developer sell?"],
     };
   }
 
   return {
-    answer: `**Vane Intelligence Summary — $${token.symbol}**\n\n${token.summary}\n\n**Confidence:** ${token.cluster ? `${Math.round(token.cluster.confidence * 100)}%` : "n/a"} · **Vane Score:** ${token.vaneScore.total}/100 · **Mcap:** ${formatUsd(token.marketCapUsd)} · **Liq:** ${formatUsd(token.liquidityUsd)}`,
+    answer: `**Vane Intelligence — $${token.symbol}**\n\n${token.summary}\n\nIntegrity ${token.integrity.total} · Momentum ${token.momentum.total} · Mcap ${formatUsd(token.marketCapUsd)} · Liq ${formatUsd(token.liquidityUsd)}`,
     citations: [
       ...citations,
       { label: "Open graph", href: `${ctx.webUrl}/graph/${token.address}` },
     ],
     toolsUsed,
-    suggestedFollowUps: [
-      "Is this token bundled?",
-      "What is the biggest risk?",
-      "Who funded the developer?",
-    ],
+    suggestedFollowUps: ["Is this token bundled?", "What is the biggest risk?"],
   };
 }
 
-/** Optional LLM polish — only rewrites structure; facts come from tools */
 export async function maybePolishWithLlm(
   answer: AgentAnswer,
   apiKey?: string,
@@ -188,19 +132,16 @@ export async function maybePolishWithLlm(
           {
             role: "system",
             content:
-              "You are Vane. Rewrite the user content for clarity only. Do not add blockchain facts, numbers, or claims that are not already present. Keep markdown.",
+              "Rewrite for clarity only. Do not add blockchain facts or numbers not already present.",
           },
           { role: "user", content: answer.answer },
         ],
       }),
     });
     if (!res.ok) return answer;
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const text = data.choices?.[0]?.message?.content?.trim();
-    if (!text) return answer;
-    return { ...answer, answer: text };
+    return text ? { ...answer, answer: text } : answer;
   } catch {
     return answer;
   }
