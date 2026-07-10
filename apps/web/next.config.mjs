@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@vane/shared-types"],
-  reactStrictMode: true,
+  outputFileTracingRoot: new URL("../..", import.meta.url).pathname,
 };
 
 export default nextConfig;

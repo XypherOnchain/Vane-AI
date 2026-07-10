@@ -111,7 +111,7 @@ export default async function RadarPage({
                 <td className="tabular px-3 py-3">{t.momentumScore}</td>
                 <td className="px-3 py-3 text-[var(--color-muted)]">
                   {t.status}
-                  {!t.dataReady.graph && (
+                  {!t.dataReady?.graph && (
                     <div className="text-[10px] text-[var(--color-warn)]">Graph indexing</div>
                   )}
                 </td>

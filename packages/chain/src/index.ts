@@ -65,7 +65,7 @@ export function toViemChain(cfg: NetworkConfig): Chain {
 export type ProviderHealth = {
   primaryOk: boolean;
   backupOk: boolean;
-  tipBlock: bigint | null;
+  tipBlock: string | null;
   latencyMs: number | null;
   error?: string;
 };
@@ -136,19 +136,19 @@ export class RpcProvider {
     const t0 = Date.now();
     let primaryOk = false;
     let backupOk = false;
-    let tipBlock: bigint | null = null;
+    let tipBlock: string | null = null;
     let error: string | undefined;
     try {
-      tipBlock = await this.primary.getBlockNumber();
+      tipBlock = (await this.primary.getBlockNumber()).toString();
       primaryOk = true;
     } catch (e) {
       error = (e as Error).message;
     }
     if (this.backup) {
       try {
-        await this.backup.getBlockNumber();
+        const tip = await this.backup.getBlockNumber();
         backupOk = true;
-        if (tipBlock == null) tipBlock = await this.backup.getBlockNumber();
+        if (tipBlock == null) tipBlock = tip.toString();
       } catch {
         /* ignore */
       }
