@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vane-postgres
+    environment:
+      POSTGRES_USER: vane
+      POSTGRES_PASSWORD: vane
+      POSTGRES_DB: vane
+    ports:
+      - "5432:5432"
+    volumes:
+      - vane_pg:/var/lib/postgresql/data
+      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vane -d vane"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: vane-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - vane_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  vane_pg:
+  vane_redis:

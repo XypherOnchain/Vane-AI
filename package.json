@@ -1,0 +1,29 @@
+{
+  "name": "vane",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Vane AI — The live intelligence network for Robinhood Chain",
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @vane/web --filter @vane/api --filter @vane/bot --filter @vane/indexer run dev",
+    "dev:web": "pnpm --filter @vane/web dev",
+    "dev:api": "pnpm --filter @vane/api dev",
+    "dev:bot": "pnpm --filter @vane/bot dev",
+    "dev:indexer": "pnpm --filter @vane/indexer dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "loadtest": "pnpm --filter @vane/api loadtest"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.29.3",
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "dotenv": "^17.4.2",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3"
+  }
+}

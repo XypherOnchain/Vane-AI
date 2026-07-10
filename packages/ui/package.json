@@ -1,0 +1,14 @@
+{
+  "name": "@vane/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/tokens.css"
+  },
+  "scripts": {
+    "build": "echo ok",
+    "typecheck": "echo ok",
+    "lint": "echo ok"
+  }
+}
