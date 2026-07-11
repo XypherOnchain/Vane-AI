@@ -72,6 +72,26 @@ The legacy `apps/bot` was removed; its reusable formatting logic now lives in
 directory were removed — `packages/shared-types` and `infrastructure/sql` are
 canonical.
 
+## Live integrations (Robinhood Chain, chain ID 4663)
+
+Protocol addresses live in the versioned registry at
+`packages/chain/src/integrations.ts` — never scattered through code. Every
+enabled address was bytecode-verified on-chain on 2026-07-10.
+
+| Integration          | Status                                                | Contracts                                   |
+| -------------------- | ----------------------------------------------------- | ------------------------------------------- |
+| NOXA Fun (launchpad) | **live** — launches decoded from LaunchFactory events | `0xD9eC…FCcB` factory, `0x7F03…cD85` locker |
+| Uniswap V3 (DEX)     | **live** — PoolCreated/Swap/Mint/Burn decoding        | `0x1f7d…2EfA` factory                       |
+| Uniswap V2 / V4      | registered, disabled (adapters pending)               | verified addresses in registry              |
+| hood.fun (launchpad) | registered, **disabled** — no published addresses yet | none                                        |
+| Rialto (PropAMM)     | registered, disabled — addresses unpublished          | none                                        |
+
+The indexer's integrations watcher backfills and tails these contracts,
+persisting real launches into `tokens` and `pools`. The API serves them on
+`/v1/radar` with honest `MARKET_PENDING` states until the pricing pipeline
+lands. Adapter decoders are tested against real captured mainnet logs
+(`packages/dex-adapters/src/fixtures.ts`).
+
 ## Environment
 
 See `.env.example` for the full list. Required in production (startup fails without them):

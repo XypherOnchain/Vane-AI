@@ -6,6 +6,7 @@ import { createRobinhoodProvider } from "@vane/chain";
 import { maybePolishWithLlm, runAgent } from "./services/agent.js";
 import { dbHealthy } from "./services/db.js";
 import { getRedis } from "./services/cache.js";
+import { listIndexedRadar } from "./services/indexed.js";
 import {
   createAlert,
   createReport,
@@ -170,22 +171,27 @@ app.get("/v1/search", (req, res) => {
   res.json({ results: search(String(req.query.q ?? "")), demoMode });
 });
 
-app.get("/v1/radar", (_req, res) => {
-  const items = listRadar();
-  if (!demoMode && items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
-  res.json({ items, demoMode });
+app.get("/v1/radar", async (_req, res) => {
+  if (demoMode) return res.json({ items: listRadar(), demoMode });
+  const items = await listIndexedRadar();
+  if (!items || items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
+  res.json({ items, demoMode: false });
 });
 
-app.get("/v1/new-pairs", (_req, res) => {
-  const items = listNewPairs();
-  if (!demoMode && items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
-  res.json({ items, demoMode });
+app.get("/v1/new-pairs", async (_req, res) => {
+  if (demoMode) return res.json({ items: listNewPairs(), demoMode });
+  const items = await listIndexedRadar();
+  if (!items || items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
+  res.json({ items: items.filter((t) => t.ageMinutes < 24 * 60), demoMode: false });
 });
 
-app.get("/v1/trending", (_req, res) => {
-  const items = listTrending();
-  if (!demoMode && items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
-  res.json({ items, demoMode });
+app.get("/v1/trending", async (_req, res) => {
+  if (demoMode) return res.json({ items: listTrending(), demoMode });
+  // Trending requires real volume metrics, which are not computed yet.
+  // Until pricing lands, trending honestly reports the same new-launch feed.
+  const items = await listIndexedRadar();
+  if (!items || items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
+  res.json({ items, demoMode: false, note: "volume ranking pending market-data pipeline" });
 });
 
 async function tokenOr404(req: express.Request, res: express.Response) {

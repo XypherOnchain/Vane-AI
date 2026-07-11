@@ -104,6 +104,12 @@ importers:
       "@vane/config":
         specifier: workspace:*
         version: link:../../packages/config
+      "@vane/dex-adapters":
+        specifier: workspace:*
+        version: link:../../packages/dex-adapters
+      "@vane/launchpad-adapters":
+        specifier: workspace:*
+        version: link:../../packages/launchpad-adapters
       ioredis:
         specifier: ^5.6.0
         version: 5.11.1
@@ -234,13 +240,41 @@ importers:
 
   packages/database: {}
 
-  packages/dex-adapters: {}
+  packages/dex-adapters:
+    dependencies:
+      "@vane/chain":
+        specifier: workspace:*
+        version: link:../chain
+      viem:
+        specifier: ^2.28.0
+        version: 2.55.0(typescript@5.9.3)(zod@3.25.76)
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.9
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.0)
 
   packages/graph-engine: {}
 
   packages/intelligence: {}
 
-  packages/launchpad-adapters: {}
+  packages/launchpad-adapters:
+    dependencies:
+      "@vane/chain":
+        specifier: workspace:*
+        version: link:../chain
+      "@vane/dex-adapters":
+        specifier: workspace:*
+        version: link:../dex-adapters
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.9
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.0)
 
   packages/observability: {}
 

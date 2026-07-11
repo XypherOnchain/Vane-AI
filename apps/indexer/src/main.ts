@@ -3,6 +3,7 @@ import { createRobinhoodProvider, erc20Abi, normalizeAddress } from "@vane/chain
 import { Redis } from "ioredis";
 import pg from "pg";
 import type { Hex } from "viem";
+import { runIntegrationsWatcher } from "./integrations-watcher.js";
 
 const env = loadEnv();
 const POLL_MS = env.INDEXER_POLL_MS;
@@ -194,7 +195,10 @@ async function main() {
   );
   const health = await provider.healthCheck();
   console.log("Provider health", health);
-  await Promise.all(Array.from({ length: WORKERS }, (_, i) => workerLoop(i)));
+  await Promise.all([
+    ...Array.from({ length: WORKERS }, (_, i) => workerLoop(i)),
+    runIntegrationsWatcher({ provider, getPool, pollMs: POLL_MS }),
+  ]);
 }
 
 main().catch((e) => {

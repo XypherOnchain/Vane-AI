@@ -2,6 +2,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
+    signal: AbortSignal.timeout(10_000),
     ...init,
     next: { revalidate: 8 },
   });

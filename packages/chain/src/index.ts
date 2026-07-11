@@ -9,6 +9,8 @@ import {
 } from "viem";
 import type { VaneEnv } from "@vane/config";
 
+export * from "./integrations.js";
+
 export interface NetworkConfig {
   id: "robinhood-mainnet" | "robinhood-testnet";
   chainId: number;
