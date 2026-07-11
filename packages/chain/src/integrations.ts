@@ -75,7 +75,7 @@ export const ROBINHOOD_INTEGRATIONS: IntegrationEntry[] = [
     displayName: "Uniswap V2",
     kind: "dex",
     chainId: CHAIN_ID,
-    enabled: false,
+    enabled: true,
     startBlock: MAINNET_START,
     contracts: [
       {
@@ -85,7 +85,7 @@ export const ROBINHOOD_INTEGRATIONS: IntegrationEntry[] = [
       },
     ],
     sources: ["https://github.com/Uniswap/contracts/pull/138", "eth_getCode verified 2026-07-10"],
-    notes: "Deployed; adapter not yet built. Enable once decoding fixtures exist.",
+    notes: "Canonical V2 factory (immutable ABI). PairCreated adapter live.",
   },
   {
     id: "uniswap-v4",

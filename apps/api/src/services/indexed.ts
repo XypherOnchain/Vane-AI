@@ -7,7 +7,13 @@ import type {
   WalletDna,
 } from "@vane/shared-types";
 import { getPool } from "./db.js";
-import { fetchTokenMarket, type TokenMarketData } from "./market.js";
+import { fetchHolders } from "./holders.js";
+import {
+  fetchNewPoolStats,
+  fetchTokenMarket,
+  fetchTokenMarketBulk,
+  type TokenMarketData,
+} from "./market.js";
 
 /**
  * Real intelligence built from indexed chain data (Postgres, populated by the
@@ -22,10 +28,12 @@ interface TokenRow {
   name: string | null;
   symbol: string | null;
   decimals: number | null;
+  total_supply: string | null;
   launchpad_id: string | null;
   deployer_address: string | null;
   created_block: string | null;
   created_at: Date;
+  launched_at: Date | null;
   processing_state: string;
 }
 
@@ -45,13 +53,15 @@ interface SiblingRow {
   created_at: Date;
 }
 
-function ageMinutesOf(createdAt: Date): number {
-  return Math.max(0, Math.round((Date.now() - createdAt.getTime()) / 60_000));
+/** Age from the real block timestamp; DB insert time only as a last resort. */
+function ageMinutesOf(row: Pick<TokenRow, "created_at" | "launched_at">): number {
+  const t = row.launched_at ?? row.created_at;
+  return Math.max(0, Math.round((Date.now() - t.getTime()) / 60_000));
 }
 
 // ── Radar ────────────────────────────────────────────────────────────────
 
-function toRadarCard(row: TokenRow & { pool_count: string }): RadarCard {
+function toRadarCard(row: TokenRow & { pool_count: string; total_supply: string | null }): RadarCard {
   return {
     dataSource: "indexed",
     address: row.address,
@@ -64,7 +74,7 @@ function toRadarCard(row: TokenRow & { pool_count: string }): RadarCard {
     sells1h: 0,
     uniqueBuyers: 0,
     holders: 0,
-    ageMinutes: ageMinutesOf(row.created_at),
+    ageMinutes: ageMinutesOf(row),
     connectedSupplyPct: 0,
     integrityScore: 0,
     momentumScore: 0,
@@ -82,8 +92,8 @@ export async function listIndexedRadar(limit = 100): Promise<RadarCard[] | null>
   if (!pool) return null;
   try {
     const r = await pool.query<TokenRow & { pool_count: string }>(
-      `SELECT t.address, t.name, t.symbol, t.decimals, t.launchpad_id, t.deployer_address,
-              t.created_block, t.created_at, t.processing_state,
+      `SELECT t.address, t.name, t.symbol, t.decimals, t.total_supply::text, t.launchpad_id,
+              t.deployer_address, t.created_block, t.created_at, t.launched_at, t.processing_state,
               COUNT(p.address)::text AS pool_count
        FROM tokens t
        LEFT JOIN pools p ON p.chain_id = t.chain_id
@@ -94,8 +104,9 @@ export async function listIndexedRadar(limit = 100): Promise<RadarCard[] | null>
        LIMIT $1`,
       [limit],
     );
-    const cards = r.rows.map(toRadarCard);
-    await enrichRadarWithMarket(cards, 10);
+    const rows = r.rows;
+    const cards = rows.map(toRadarCard);
+    await enrichRadar(cards, rows);
     return cards;
   } catch {
     // Table missing or DB down — callers report not_indexed / readiness fails.
@@ -104,20 +115,44 @@ export async function listIndexedRadar(limit = 100): Promise<RadarCard[] | null>
 }
 
 /**
- * Fill live market metrics for the newest cards. Fetches are cached (30s per
- * token) and bounded so a radar refresh never exceeds GeckoTerminal's free
- * rate limit. Tokens without market coverage stay honestly at zero/pending.
+ * Fill live metrics for radar cards from bulk sources (all cached ~30-60s):
+ *  - market cap / liquidity / 24h volume: GeckoTerminal tokens/multi (30 per call)
+ *  - 1h buys/sells/volume: GeckoTerminal new_pools (single call)
+ *  - holder counts: Blockscout, newest 12 tokens only (per-token calls)
+ * Tokens without coverage stay honestly at zero/pending.
  */
-async function enrichRadarWithMarket(cards: RadarCard[], topN: number): Promise<void> {
-  const targets = cards.slice(0, topN);
-  await Promise.allSettled(
-    targets.map(async (card) => {
-      const m = await fetchTokenMarket(card.address);
-      if (!m) return;
+async function enrichRadar(cards: RadarCard[], rows: TokenRow[]): Promise<void> {
+  const rowByAddr = new Map(rows.map((r) => [r.address, r]));
+  const [bulk, poolStats] = await Promise.all([
+    fetchTokenMarketBulk(cards.map((c) => c.address)),
+    fetchNewPoolStats(),
+  ]);
+  for (const card of cards) {
+    const m = bulk.get(card.address);
+    if (m) {
       card.marketCapUsd = m.marketCapUsd;
       card.liquidityUsd = m.liquidityUsd;
       card.processingState = "MARKET_READY";
       card.dataReady.market = true;
+      card.status = m.volume24hUsd > 10_000 ? "active" : "new";
+    }
+    const s = poolStats.get(card.address);
+    if (s) {
+      card.buys1h = s.buys1h;
+      card.sells1h = s.sells1h;
+      card.uniqueBuyers = s.buyers1h;
+      card.volume1hUsd = s.volume1hUsd;
+    }
+  }
+  await Promise.allSettled(
+    cards.slice(0, 12).map(async (card) => {
+      const row = rowByAddr.get(card.address);
+      const h = await fetchHolders(card.address, row?.total_supply ?? null, row?.created_block ?? null);
+      if (!h) return;
+      // connectedSupplyPct stays 0 — that is a cluster-analysis metric, not
+      // plain concentration, and cluster analysis has not run yet.
+      card.holders = h.holderCount;
+      card.dataReady.holders = true;
     }),
   );
 }
@@ -140,8 +175,8 @@ async function tokenRow(address: string): Promise<TokenRow | null> {
   if (!pool) return null;
   try {
     const r = await pool.query<TokenRow>(
-      `SELECT address, name, symbol, decimals, launchpad_id, deployer_address,
-              created_block, created_at, processing_state
+      `SELECT address, name, symbol, decimals, total_supply::text, launchpad_id,
+              deployer_address, created_block, created_at, launched_at, processing_state
        FROM tokens WHERE address = $1 LIMIT 1`,
       [address.toLowerCase()],
     );
@@ -188,9 +223,10 @@ export async function getIndexedTokenOverview(address: string): Promise<TokenOve
   const row = await tokenRow(address);
   if (!row) return null;
 
-  const [market, siblings] = await Promise.all([
+  const [market, siblings, holders] = await Promise.all([
     fetchTokenMarket(row.address),
     row.deployer_address ? siblingLaunches(row.deployer_address, row.address) : [],
+    fetchHolders(row.address, row.total_supply, row.created_block),
   ]);
 
   const launchCount = siblings.length + 1;
@@ -203,12 +239,20 @@ export async function getIndexedTokenOverview(address: string): Promise<TokenOve
       severity: launchCount >= 8 ? "critical" : "high",
     });
   }
+  if (holders && holders.top10Pct > 50) {
+    warnings.push({
+      text: `Top 10 holders control ${holders.top10Pct.toFixed(1)}% of supply (Blockscout)`,
+      href: `/token/${row.address}?tab=holders`,
+      severity: holders.top10Pct > 80 ? "critical" : "high",
+    });
+  }
 
   const evidence: string[] = [
     `Launch indexed from on-chain ${row.launchpad_id ?? "factory"} events (block ${row.created_block ?? "?"})`,
   ];
   if (row.deployer_address) evidence.push(`Deployer ${row.deployer_address}: ${launchCount} known launches`);
   if (market) evidence.push(`Market data: GeckoTerminal robinhood network at ${market.fetchedAt}`);
+  if (holders) evidence.push(`Holder distribution: Blockscout at ${holders.fetchedAt}`);
 
   // Partial deterministic integrity: only the developer-history component is
   // computable today; the rest are 0 with confidence marked low.
@@ -217,7 +261,7 @@ export async function getIndexedTokenOverview(address: string): Promise<TokenOve
     : 0;
 
   const summaryParts = [
-    `${row.name ?? "Unknown"} ($${row.symbol ?? "???"}) launched via ${row.launchpad_id ?? "an unregistered factory"} ${describeAge(ageMinutesOf(row.created_at))}.`,
+    `${row.name ?? "Unknown"} ($${row.symbol ?? "???"}) launched via ${row.launchpad_id ?? "an unregistered factory"} ${describeAge(ageMinutesOf(row))}.`,
   ];
   if (row.deployer_address) {
     summaryParts.push(
@@ -231,6 +275,11 @@ export async function getIndexedTokenOverview(address: string): Promise<TokenOve
       ? `Live market: ${usd(market.marketCapUsd)} market cap, ${usd(market.liquidityUsd)} liquidity, ${usd(market.volume24hUsd)} 24h volume.`
       : `No market coverage yet — the token may be too new or too small for price aggregators.`,
   );
+  if (holders) {
+    summaryParts.push(
+      `${holders.holderCount}${holders.hasMore ? "+" : ""} holders; top 10 control ${holders.top10Pct.toFixed(1)}% of supply.`,
+    );
+  }
 
   return {
     dataSource: "indexed",
@@ -247,15 +296,15 @@ export async function getIndexedTokenOverview(address: string): Promise<TokenOve
     volume24hUsd: market?.volume24hUsd ?? 0,
     buys1h: 0,
     sells1h: 0,
-    holders: 0,
+    holders: holders?.holderCount ?? 0,
     uniqueBuyers: 0,
-    ageMinutes: ageMinutesOf(row.created_at),
+    ageMinutes: ageMinutesOf(row),
     athFdvUsd: 0,
     athMinutesAgo: null,
     deployer: row.deployer_address ?? "",
     launchpad: row.launchpad_id ?? undefined,
     processingState: market ? "MARKET_READY" : "MARKET_PENDING",
-    topHolders: [],
+    topHolders: holders?.topHolders ?? [],
     connectedSupplyPct: 0,
     confirmedConnectedSupplyPct: 0,
     probableConnectedSupplyPct: 0,
@@ -276,12 +325,13 @@ export async function getIndexedTokenOverview(address: string): Promise<TokenOve
       evidence: market ? [`24h price change ${market.priceChange24hPct.toFixed(1)}% (GeckoTerminal)`] : [],
     },
     dataConfidence: {
-      level: market ? "medium" : "low",
-      score: market ? 55 : 30,
+      level: market && holders ? "medium" : "low",
+      score: 30 + (market ? 20 : 0) + (holders ? 15 : 0),
       reasons: [
         "Launch + deployer facts are indexed from chain",
         market ? "Market data live from GeckoTerminal" : "No market coverage yet",
-        "Holder, contract-scan, and cluster analysis pending",
+        holders ? "Holder distribution live from Blockscout" : "Holder data unavailable",
+        "Contract-scan and cluster analysis pending",
       ],
     },
     cluster: null,
@@ -308,17 +358,19 @@ function describeAge(minutes: number): string {
 
 /**
  * Real relationship graph from indexed facts: deployer → token (deployment),
- * token → pools (liquidity), deployer → sibling launches (serial pattern).
- * No probabilistic clustering yet — every edge here is a confirmed on-chain fact.
+ * token → pools (liquidity), deployer → sibling launches (serial pattern),
+ * token → top holders (Blockscout balances, sized by supply share).
+ * No probabilistic clustering yet — every edge here is a real on-chain fact.
  */
 export async function getIndexedGraph(
   address: string,
 ): Promise<{ dataSource: "indexed"; nodes: GraphNode[]; edges: GraphEdge[] } | null> {
   const row = await tokenRow(address);
   if (!row) return null;
-  const [pools, siblings] = await Promise.all([
+  const [pools, siblings, holders] = await Promise.all([
     poolsFor(row.address),
     row.deployer_address ? siblingLaunches(row.deployer_address, row.address) : [],
+    fetchHolders(row.address, row.total_supply, row.created_block),
   ]);
 
   const nodes: GraphNode[] = [
@@ -392,6 +444,31 @@ export async function getIndexedGraph(
         evidenceIds: [],
       });
     }
+  }
+
+  // Real holders, sized by supply share. Skip addresses already in the graph
+  // (pools, deployer) so each node appears once with its strongest identity.
+  const known = new Set(nodes.map((n) => n.id));
+  for (const h of holders?.topHolders.slice(0, 20) ?? []) {
+    if (known.has(h.address)) continue;
+    known.add(h.address);
+    nodes.push({
+      id: h.address,
+      address: h.address,
+      size: Math.max(10, Math.min(44, h.pctSupply * 3)),
+      category: h.isContract ? "contract" : "unclassified",
+      label: h.label ?? `${h.pctSupply.toFixed(1)}%`,
+    });
+    edges.push({
+      id: `holder-${h.address}`,
+      from: h.address,
+      to: row.address,
+      relation: "holds",
+      confidence: 1,
+      confirmed: true,
+      why: `Holds ${h.pctSupply.toFixed(2)}% of supply (Blockscout balance snapshot)`,
+      evidenceIds: [],
+    });
   }
 
   return { dataSource: "indexed", nodes, edges };

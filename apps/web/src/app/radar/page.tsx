@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatPct, formatUsd, type RadarCard } from "@vane/shared-types";
+import { formatAge, formatPct, formatUsd, type RadarCard } from "@vane/shared-types";
 import { apiGet } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +105,12 @@ export default async function RadarPage({
                   <Link href={`/token/${t.address}`} className="font-semibold">
                     ${t.symbol}
                   </Link>
+                  <span className="ml-2 text-xs text-[var(--color-muted)]">{t.name}</span>
+                  {t.launchpad && (
+                    <span className="ml-2 rounded border border-[var(--color-line)] px-1.5 py-0.5 text-[10px] uppercase text-[var(--color-muted)]">
+                      {t.launchpad}
+                    </span>
+                  )}
                   <div className="font-mono text-[11px] text-[var(--color-muted)]">
                     {t.address.slice(0, 8)}…{t.address.slice(-4)}
                   </div>
@@ -112,11 +118,17 @@ export default async function RadarPage({
                     <div className="mt-1 text-[11px] text-[var(--color-warn)]">{t.alerts[0]}</div>
                   )}
                 </td>
-                <td className="tabular px-3 py-3">{t.ageMinutes}m</td>
-                <td className="tabular px-3 py-3">{formatUsd(t.marketCapUsd)}</td>
-                <td className="tabular px-3 py-3">{formatUsd(t.liquidityUsd)}</td>
-                <td className="tabular px-3 py-3">{formatUsd(t.volume1hUsd)}</td>
-                <td className="tabular px-3 py-3">{t.holders}</td>
+                <td className="tabular px-3 py-3">{formatAge(t.ageMinutes)}</td>
+                <td className="tabular px-3 py-3">
+                  {t.dataReady?.market ? formatUsd(t.marketCapUsd) : "—"}
+                </td>
+                <td className="tabular px-3 py-3">
+                  {t.dataReady?.market ? formatUsd(t.liquidityUsd) : "—"}
+                </td>
+                <td className="tabular px-3 py-3">
+                  {t.volume1hUsd > 0 ? formatUsd(t.volume1hUsd) : "—"}
+                </td>
+                <td className="tabular px-3 py-3">{t.dataReady?.holders ? t.holders : "—"}</td>
                 <td
                   className={`tabular px-3 py-3 ${
                     t.connectedSupplyPct > 20 ? "text-[var(--color-danger)]" : ""

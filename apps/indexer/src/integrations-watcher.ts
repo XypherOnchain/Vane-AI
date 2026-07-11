@@ -48,19 +48,63 @@ async function setCheckpoint(deps: WatcherDeps, block: bigint) {
   );
 }
 
+/** Retry with backoff — the public RPC 429s aggressively under backfill load. */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 400 * 2 ** i));
+    }
+  }
+  throw lastErr;
+}
+
 async function readTokenMetadata(deps: WatcherDeps, address: `0x${string}`) {
-  const results = await Promise.allSettled([
-    deps.provider.readContract({ address, abi: erc20Abi, functionName: "name" }),
-    deps.provider.readContract({ address, abi: erc20Abi, functionName: "symbol" }),
-    deps.provider.readContract({ address, abi: erc20Abi, functionName: "decimals" }),
-    deps.provider.readContract({ address, abi: erc20Abi, functionName: "totalSupply" }),
-  ]);
-  return {
-    name: results[0].status === "fulfilled" ? String(results[0].value) : null,
-    symbol: results[1].status === "fulfilled" ? String(results[1].value) : null,
-    decimals: results[2].status === "fulfilled" ? Number(results[2].value) : 18,
-    totalSupply: results[3].status === "fulfilled" ? String(results[3].value) : null,
-  };
+  // One Multicall3 eth_call instead of four separate reads — 4x fewer requests
+  // against the rate-limited public RPC, plus retry for transient 429s.
+  try {
+    const results = (await withRetry(() =>
+      deps.provider.multicall({
+        contracts: [
+          { address, abi: erc20Abi, functionName: "name" },
+          { address, abi: erc20Abi, functionName: "symbol" },
+          { address, abi: erc20Abi, functionName: "decimals" },
+          { address, abi: erc20Abi, functionName: "totalSupply" },
+        ],
+        allowFailure: true,
+      }),
+    )) as { status: "success" | "failure"; result?: unknown }[];
+    return {
+      name: results[0].status === "success" ? String(results[0].result) : null,
+      symbol: results[1].status === "success" ? String(results[1].result) : null,
+      decimals: results[2].status === "success" ? Number(results[2].result) : 18,
+      totalSupply: results[3].status === "success" ? String(results[3].result) : null,
+    };
+  } catch {
+    return { name: null, symbol: null, decimals: 18, totalSupply: null };
+  }
+}
+
+/** Block timestamp lookup with a small LRU-ish cache (launches cluster in nearby blocks). */
+const blockTsCache = new Map<string, Date>();
+async function blockTimestamp(deps: WatcherDeps, blockNumber: bigint): Promise<Date | null> {
+  const key = blockNumber.toString();
+  const hit = blockTsCache.get(key);
+  if (hit) return hit;
+  try {
+    const block = await withRetry(() => deps.provider.getBlock({ blockNumber }));
+    const ts = new Date(Number(block.timestamp) * 1000);
+    blockTsCache.set(key, ts);
+    if (blockTsCache.size > 5_000) {
+      for (const k of Array.from(blockTsCache.keys()).slice(0, 1_000)) blockTsCache.delete(k);
+    }
+    return ts;
+  } catch {
+    return null;
+  }
 }
 
 async function upsertLaunchedToken(
@@ -72,16 +116,20 @@ async function upsertLaunchedToken(
     blockNumber: bigint;
   },
 ) {
-  const meta = await readTokenMetadata(deps, args.token);
+  const [meta, launchedAt] = await Promise.all([
+    readTokenMetadata(deps, args.token),
+    blockTimestamp(deps, args.blockNumber),
+  ]);
   await deps.getPool().query(
-    `INSERT INTO tokens(chain_id, address, name, symbol, decimals, total_supply, deployer_address, launchpad_id, created_block, processing_state)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'METADATA_READY')
+    `INSERT INTO tokens(chain_id, address, name, symbol, decimals, total_supply, deployer_address, launchpad_id, created_block, launched_at, processing_state)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'METADATA_READY')
      ON CONFLICT (chain_id, address) DO UPDATE SET
        name = COALESCE(EXCLUDED.name, tokens.name),
        symbol = COALESCE(EXCLUDED.symbol, tokens.symbol),
        total_supply = COALESCE(EXCLUDED.total_supply, tokens.total_supply),
        launchpad_id = COALESCE(EXCLUDED.launchpad_id, tokens.launchpad_id),
        deployer_address = COALESCE(tokens.deployer_address, EXCLUDED.deployer_address),
+       launched_at = COALESCE(EXCLUDED.launched_at, tokens.launched_at),
        processing_state = 'METADATA_READY'`,
     [
       deps.provider.config.chainId,
@@ -93,6 +141,7 @@ async function upsertLaunchedToken(
       normalizeAddress(args.creator),
       args.launchpadId,
       args.blockNumber.toString(),
+      launchedAt,
     ],
   );
   return meta;
@@ -133,28 +182,43 @@ async function upsertPool(
 }
 
 /**
- * Metadata reads can fail transiently during backfill (RPC throttling), leaving
- * tokens with null name/symbol. Retry a small batch every loop so the radar
- * heals itself instead of showing "Unknown" forever.
+ * Metadata reads and block-timestamp lookups can fail transiently during
+ * backfill (RPC throttling), leaving tokens with null name/symbol/launched_at.
+ * Heal a batch every loop so the radar repairs itself instead of showing
+ * "Unknown" and zero ages forever.
  */
 async function repairMissingMetadata(deps: WatcherDeps): Promise<number> {
-  const r = await deps.getPool().query<{ address: string }>(
-    `SELECT address FROM tokens
-     WHERE chain_id = $1 AND (name IS NULL OR symbol IS NULL)
-     ORDER BY created_block DESC NULLS LAST LIMIT 10`,
+  const r = await deps.getPool().query<{ address: string; created_block: string | null }>(
+    `SELECT address, created_block::text FROM tokens
+     WHERE chain_id = $1 AND (name IS NULL OR symbol IS NULL OR launched_at IS NULL)
+     ORDER BY created_block DESC NULLS LAST LIMIT 25`,
     [deps.provider.config.chainId],
   );
   let repaired = 0;
   for (const row of r.rows) {
-    const meta = await readTokenMetadata(deps, row.address as `0x${string}`);
-    if (meta.name == null && meta.symbol == null) continue;
+    const [meta, launchedAt] = await Promise.all([
+      readTokenMetadata(deps, row.address as `0x${string}`),
+      row.created_block ? blockTimestamp(deps, BigInt(row.created_block)) : null,
+    ]);
+    if (meta.name == null && meta.symbol == null && launchedAt == null) continue;
     await deps.getPool().query(
       `UPDATE tokens SET name = COALESCE($3, name), symbol = COALESCE($4, symbol),
-        decimals = $5, total_supply = COALESCE($6, total_supply)
+        decimals = $5, total_supply = COALESCE($6, total_supply),
+        launched_at = COALESCE($7, launched_at)
        WHERE chain_id = $1 AND address = $2`,
-      [deps.provider.config.chainId, row.address, meta.name, meta.symbol, meta.decimals, meta.totalSupply],
+      [
+        deps.provider.config.chainId,
+        row.address,
+        meta.name,
+        meta.symbol,
+        meta.decimals,
+        meta.totalSupply,
+        launchedAt,
+      ],
     );
     repaired += 1;
+    // Gentle pacing so repair never competes with live ingestion for RPC quota.
+    await new Promise((res) => setTimeout(res, 150));
   }
   return repaired;
 }

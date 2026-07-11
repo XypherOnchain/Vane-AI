@@ -111,6 +111,126 @@ export async function fetchTokenMarket(address: string): Promise<TokenMarketData
   }
 }
 
+export interface BulkTokenMarket {
+  priceUsd: number;
+  marketCapUsd: number;
+  fdvUsd: number;
+  liquidityUsd: number;
+  volume24hUsd: number;
+  logoUrl: string | null;
+}
+
+/**
+ * Market data for many tokens in one call (GT tokens/multi accepts 30 per
+ * request). Cached 30s. Tokens without coverage are simply absent from the map.
+ */
+const bulkCache = new Map<string, { data: BulkTokenMarket | null; at: number }>();
+const BULK_TTL_MS = 30_000;
+
+export async function fetchTokenMarketBulk(
+  addresses: string[],
+): Promise<Map<string, BulkTokenMarket>> {
+  const out = new Map<string, BulkTokenMarket>();
+  const missing: string[] = [];
+  const now = Date.now();
+  for (const raw of addresses) {
+    const addr = raw.toLowerCase();
+    const hit = bulkCache.get(addr);
+    if (hit && now - hit.at < BULK_TTL_MS) {
+      if (hit.data) out.set(addr, hit.data);
+    } else {
+      missing.push(addr);
+    }
+  }
+  for (let i = 0; i < missing.length; i += 30) {
+    const chunk = missing.slice(i, i + 30);
+    try {
+      const json = (await gtFetch(
+        `/networks/${GT_NETWORK}/tokens/multi/${chunk.join(",")}`,
+      )) as { data?: { attributes?: Record<string, unknown> }[] };
+      const seen = new Set<string>();
+      for (const t of json.data ?? []) {
+        const a = t.attributes ?? {};
+        const addr = String(a.address ?? "").toLowerCase();
+        if (!addr) continue;
+        seen.add(addr);
+        const volume = (a as { volume_usd?: { h24?: unknown } }).volume_usd;
+        const data: BulkTokenMarket = {
+          priceUsd: num(a.price_usd),
+          marketCapUsd: num(a.market_cap_usd) || num(a.fdv_usd),
+          fdvUsd: num(a.fdv_usd),
+          liquidityUsd: num(a.total_reserve_in_usd),
+          volume24hUsd: num(volume?.h24),
+          logoUrl:
+            typeof a.image_url === "string" && a.image_url !== "missing.png" ? a.image_url : null,
+        };
+        bulkCache.set(addr, { data, at: now });
+        if (data.priceUsd > 0) out.set(addr, data);
+      }
+      for (const addr of chunk) {
+        if (!seen.has(addr)) bulkCache.set(addr, { data: null, at: now });
+      }
+    } catch {
+      break; // rate-limited — serve what we have, retry next refresh
+    }
+  }
+  return out;
+}
+
+export interface NewPoolStats {
+  buys1h: number;
+  sells1h: number;
+  buyers1h: number;
+  volume1hUsd: number;
+  poolCreatedAt: string | null;
+}
+
+/**
+ * Fresh-pool activity (1h buys/sells/volume) from GT new_pools, keyed by base
+ * token address. One request covers the 20 newest pools; cached 30s.
+ */
+let newPoolsCache: { data: Map<string, NewPoolStats>; at: number } | null = null;
+
+export async function fetchNewPoolStats(): Promise<Map<string, NewPoolStats>> {
+  if (newPoolsCache && Date.now() - newPoolsCache.at < 30_000) return newPoolsCache.data;
+  const map = new Map<string, NewPoolStats>();
+  try {
+    const json = (await gtFetch(
+      `/networks/${GT_NETWORK}/new_pools?include=base_token&page=1`,
+    )) as {
+      data?: {
+        attributes?: Record<string, unknown>;
+        relationships?: { base_token?: { data?: { id?: string } } };
+      }[];
+      included?: { id?: string; attributes?: { address?: string } }[];
+    };
+    const tokenAddrById = new Map<string, string>();
+    for (const inc of json.included ?? []) {
+      if (inc.id && inc.attributes?.address) {
+        tokenAddrById.set(inc.id, inc.attributes.address.toLowerCase());
+      }
+    }
+    for (const pool of json.data ?? []) {
+      const a = pool.attributes ?? {};
+      const tokenAddr = tokenAddrById.get(pool.relationships?.base_token?.data?.id ?? "");
+      if (!tokenAddr || map.has(tokenAddr)) continue;
+      const tx = (a as { transactions?: { h1?: Record<string, unknown> } }).transactions?.h1 ?? {};
+      const vol = (a as { volume_usd?: { h1?: unknown } }).volume_usd;
+      map.set(tokenAddr, {
+        buys1h: num(tx.buys),
+        sells1h: num(tx.sells),
+        buyers1h: num(tx.buyers),
+        volume1hUsd: num(vol?.h1),
+        poolCreatedAt: typeof a.pool_created_at === "string" ? a.pool_created_at : null,
+      });
+    }
+    newPoolsCache = { data: map, at: Date.now() };
+  } catch {
+    /* keep stale */
+  }
+  return newPoolsCache?.data ?? map;
+}
+
 export interface PoolTrade {
   txHash: string;
   blockUnixTime: number;

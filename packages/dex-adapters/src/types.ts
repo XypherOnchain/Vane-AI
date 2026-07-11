@@ -15,7 +15,8 @@ export interface PoolCreatedEvent {
   token0: `0x${string}`;
   token1: `0x${string}`;
   feePpm: number;
-  tickSpacing: number;
+  /** null for AMMs without concentrated liquidity (e.g. Uniswap V2). */
+  tickSpacing: number | null;
   blockNumber: bigint;
   transactionHash: `0x${string}`;
   logIndex: number;
@@ -29,9 +30,10 @@ export interface SwapEvent {
   recipient: `0x${string}`;
   amount0: bigint;
   amount1: bigint;
-  sqrtPriceX96: bigint;
-  liquidity: bigint;
-  tick: number;
+  /** null for AMMs without sqrt pricing (e.g. Uniswap V2). */
+  sqrtPriceX96: bigint | null;
+  liquidity: bigint | null;
+  tick: number | null;
   blockNumber: bigint;
   transactionHash: `0x${string}`;
   logIndex: number;
@@ -43,11 +45,11 @@ export interface LiquidityEvent {
   pool: `0x${string}`;
   direction: "add" | "remove";
   owner: `0x${string}`;
-  amount: bigint;
+  amount: bigint | null;
   amount0: bigint;
   amount1: bigint;
-  tickLower: number;
-  tickUpper: number;
+  tickLower: number | null;
+  tickUpper: number | null;
   blockNumber: bigint;
   transactionHash: `0x${string}`;
   logIndex: number;

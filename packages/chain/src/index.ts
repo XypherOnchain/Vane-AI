@@ -73,6 +73,12 @@ export function toViemChain(cfg: NetworkConfig): Chain {
     blockExplorers: {
       default: { name: "Blockscout", url: cfg.explorerUrl },
     },
+    contracts: {
+      // Canonical Multicall3 (bytecode-verified in the integration registry) —
+      // lets viem batch many reads into one eth_call, which matters on the
+      // rate-limited public RPC.
+      multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" },
+    },
   };
 }
 
@@ -132,6 +138,10 @@ export class RpcProvider {
 
   readContract(...args: Parameters<PublicClient["readContract"]>) {
     return this.withClient((c) => c.readContract(...args));
+  }
+
+  multicall(...args: Parameters<PublicClient["multicall"]>) {
+    return this.withClient((c) => c.multicall(...args));
   }
 
   createWsClient(): PublicClient | null {

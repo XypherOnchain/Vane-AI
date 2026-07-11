@@ -258,6 +258,14 @@ export function formatPct(n: number, digits = 1): string {
   return `${n.toFixed(digits)}%`;
 }
 
+/** Human age from minutes: 45m, 3.2h, 5d. */
+export function formatAge(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes < 0) return "—";
+  if (minutes < 90) return `${Math.round(minutes)}m`;
+  if (minutes < 36 * 60) return `${(minutes / 60).toFixed(1)}h`;
+  return `${Math.round(minutes / (24 * 60))}d`;
+}
+
 export function isLikelyAddress(input: string): boolean {
   return /^0x[a-fA-F0-9]{40}$/.test(input.trim());
 }

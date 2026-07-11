@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatPct, formatUsd, shortAddress, type TokenOverview } from "@vane/shared-types";
+import { formatAge, formatPct, formatUsd, shortAddress, type TokenOverview } from "@vane/shared-types";
 import { apiGet } from "@/lib/api";
 import { TokenAsk } from "@/components/TokenAsk";
 
@@ -94,13 +94,13 @@ export default async function TokenPage({
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8">
         {[
-          ["Price", formatUsd(token.priceUsd, 8)],
-          ["Mcap", formatUsd(token.marketCapUsd)],
-          ["Liquidity", formatUsd(token.liquidityUsd)],
-          ["Vol 1h", formatUsd(token.volume1hUsd)],
-          ["Buys/Sells", `${token.buys1h}/${token.sells1h}`],
-          ["Holders", String(token.holders)],
-          ["Age", `${token.ageMinutes}m`],
+          ["Price", token.priceUsd > 0 ? formatUsd(token.priceUsd, 8) : "—"],
+          ["Mcap", token.marketCapUsd > 0 ? formatUsd(token.marketCapUsd) : "—"],
+          ["Liquidity", token.liquidityUsd > 0 ? formatUsd(token.liquidityUsd) : "—"],
+          ["Vol 24h", token.volume24hUsd > 0 ? formatUsd(token.volume24hUsd) : "—"],
+          ["Buys/Sells", token.buys1h + token.sells1h > 0 ? `${token.buys1h}/${token.sells1h}` : "—"],
+          ["Holders", token.holders > 0 ? String(token.holders) : "—"],
+          ["Age", formatAge(token.ageMinutes)],
           ["Connected", formatPct(token.probableConnectedSupplyPct)],
         ].map(([k, v]) => (
           <div key={k} className="border-t border-[var(--color-line)] pt-3">
@@ -200,6 +200,11 @@ export default async function TokenPage({
       {active === "holders" && (
         <section className="mt-6">
           <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">Top holders</h2>
+          {token.topHolders.length === 0 && (
+            <p className="mt-3 text-sm text-[var(--color-muted)]">
+              Holder data unavailable right now — the explorer has not indexed this token yet.
+            </p>
+          )}
           <div className="mt-4 divide-y divide-[var(--color-line)]">
             {token.topHolders.map((h, i) => (
               <div key={h.address} className="flex items-center justify-between gap-4 py-3 text-sm">
