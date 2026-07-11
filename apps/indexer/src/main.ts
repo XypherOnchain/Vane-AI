@@ -13,12 +13,18 @@ let pool: pg.Pool | null = null;
 let redis: InstanceType<typeof Redis> | null = null;
 
 function getPool() {
-  if (!pool) pool = new pg.Pool({ connectionString: env.DATABASE_URL, max: 10 });
+  if (!pool) {
+    // Strict production validation in @vane/config guarantees DATABASE_URL there;
+    // in development we fall back to the local docker-compose instance.
+    const connectionString = env.DATABASE_URL ?? "postgresql://vane:vane@localhost:5432/vane";
+    pool = new pg.Pool({ connectionString, max: 10 });
+  }
   return pool;
 }
 
 function getRedis() {
   if (!redis) {
+    if (!env.REDIS_URL) return null;
     try {
       redis = new Redis(env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
       void redis.connect().catch(() => {

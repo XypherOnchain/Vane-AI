@@ -5,11 +5,7 @@ import { BubbleGraph } from "@/components/BubbleGraph";
 
 export const dynamic = "force-dynamic";
 
-export default async function GraphPage({
-  params,
-}: {
-  params: Promise<{ address: string }>;
-}) {
+export default async function GraphPage({ params }: { params: Promise<{ address: string }> }) {
   const { address } = await params;
   let graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null = null;
   try {
@@ -25,13 +21,19 @@ export default async function GraphPage({
         Holder relationships
       </h1>
       <p className="mt-2 max-w-xl text-sm text-[var(--color-muted)]">
-        Connections are observed relationships with evidence — not automatic proof of common ownership.
+        Connections are observed relationships with evidence — not automatic proof of common
+        ownership.
       </p>
-      <Link href={`/token/${address}`} className="mt-4 inline-block text-sm text-[var(--color-accent)]">
+      <Link
+        href={`/token/${address}`}
+        className="mt-4 inline-block text-sm text-[var(--color-accent)]"
+      >
         ← Back to scan
       </Link>
       <div className="mt-6">
-        {graph ? <BubbleGraph nodes={graph.nodes} edges={graph.edges} /> : (
+        {graph ? (
+          <BubbleGraph nodes={graph.nodes} edges={graph.edges} />
+        ) : (
           <p className="text-[var(--color-muted)]">Graph unavailable.</p>
         )}
       </div>

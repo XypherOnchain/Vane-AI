@@ -1,19 +1,17 @@
 import { v4 as uuid } from "uuid";
-import type {
-  RadarCard,
-  SearchResult,
-  TokenOverview,
-  WalletDna,
-} from "@vane/shared-types";
+import { loadEnv } from "@vane/config";
+import type { RadarCard, SearchResult, TokenOverview, WalletDna } from "@vane/shared-types";
 import { isLikelyAddress, isLikelyTx } from "@vane/shared-types";
-import {
-  DEMO_TOKEN,
-  buildGraph,
-  buildRadar,
-  buildTokenOverview,
-  buildWallet,
-} from "../data/demo.js";
 import { cacheGet, cacheSet } from "./cache.js";
+
+const env = loadEnv();
+
+/**
+ * Demo intelligence is ONLY available when VANE_DEMO_MODE is deliberately enabled.
+ * When disabled (the default, and always in production), every lookup reports the
+ * honest state: nothing is indexed yet.
+ */
+export const demoMode = env.demoMode;
 
 const tokenStore = new Map<string, TokenOverview>();
 const walletStore = new Map<string, WalletDna>();
@@ -34,8 +32,12 @@ const alerts = new Map<
   }
 >();
 
-function seed() {
-  const demo = buildTokenOverview(DEMO_TOKEN);
+let demoSeed: typeof import("../data/demo.js") | null = null;
+
+async function seedDemo() {
+  demoSeed = await import("../data/demo.js");
+  const { DEMO_TOKEN, buildRadar, buildTokenOverview, buildWallet } = demoSeed;
+  const demo = markDemo(buildTokenOverview(DEMO_TOKEN));
   tokenStore.set(demo.address, demo);
   for (const card of buildRadar()) {
     if (!tokenStore.has(card.address)) {
@@ -53,20 +55,37 @@ function seed() {
       t.ageMinutes = card.ageMinutes;
       t.processingState = card.processingState;
       t.launchpad = card.launchpad;
-      tokenStore.set(card.address, t);
+      tokenStore.set(card.address, markDemo(t));
     }
   }
-  walletStore.set(demo.deployer, buildWallet(demo.deployer));
+  walletStore.set(demo.deployer, markDemoWallet(buildWallet(demo.deployer)));
 }
 
-seed();
+function markDemo(t: TokenOverview): TokenOverview {
+  return { ...t, dataSource: "demo" };
+}
+
+function markDemoWallet(w: WalletDna): WalletDna {
+  return { ...w, dataSource: "demo" };
+}
+
+if (demoMode) {
+  void seedDemo();
+}
 
 export function getToken(address: string): TokenOverview | null {
+  if (!demoMode) return null;
   const key = address.toLowerCase();
-  return tokenStore.get(key) ?? (key === DEMO_TOKEN ? buildTokenOverview(key) : null);
+  const existing = tokenStore.get(key);
+  if (existing) return existing;
+  if (demoSeed && key === demoSeed.DEMO_TOKEN) {
+    return markDemo(demoSeed.buildTokenOverview(key));
+  }
+  return null;
 }
 
 export async function getTokenCached(address: string): Promise<TokenOverview | null> {
+  if (!demoMode) return null;
   const key = `token:${address.toLowerCase()}`;
   const cached = await cacheGet(key);
   if (cached) return JSON.parse(cached) as TokenOverview;
@@ -76,7 +95,11 @@ export async function getTokenCached(address: string): Promise<TokenOverview | n
 }
 
 export function listRadar(): RadarCard[] {
-  return buildRadar().sort((a, b) => a.ageMinutes - b.ageMinutes);
+  if (!demoMode || !demoSeed) return [];
+  return demoSeed
+    .buildRadar()
+    .map((c) => ({ ...c, dataSource: "demo" as const }))
+    .sort((a, b) => a.ageMinutes - b.ageMinutes);
 }
 
 export function listNewPairs(): RadarCard[] {
@@ -88,14 +111,19 @@ export function listTrending(): RadarCard[] {
 }
 
 export function getWallet(address: string): WalletDna | null {
+  if (!demoMode || !demoSeed) return null;
   const key = address.toLowerCase();
-  return walletStore.get(key) ?? (isLikelyAddress(key) ? buildWallet(key) : null);
+  return (
+    walletStore.get(key) ??
+    (isLikelyAddress(key) ? markDemoWallet(demoSeed.buildWallet(key)) : null)
+  );
 }
 
 export function getGraph(address: string) {
+  if (!demoMode || !demoSeed) return null;
   const token = getToken(address);
   if (!token) return null;
-  return buildGraph(token.address);
+  return { ...demoSeed.buildGraph(token.address), dataSource: "demo" as const };
 }
 
 export function search(q: string): SearchResult[] {
@@ -109,16 +137,21 @@ export function search(q: string): SearchResult[] {
     if (token) {
       return [
         { type: "token", id: token.address, title: `$${token.symbol}`, subtitle: token.name },
-        { type: "wallet", id: query.toLowerCase(), title: "Open as wallet", subtitle: query.toLowerCase() },
+        {
+          type: "wallet",
+          id: query.toLowerCase(),
+          title: "Open as wallet",
+          subtitle: query.toLowerCase(),
+        },
       ];
     }
-    return [{ type: "wallet", id: query.toLowerCase(), title: "Wallet", subtitle: query.toLowerCase() }];
+    return [
+      { type: "wallet", id: query.toLowerCase(), title: "Wallet", subtitle: query.toLowerCase() },
+    ];
   }
   const lower = query.toLowerCase().replace(/^\$/, "");
   return [...tokenStore.values()]
-    .filter(
-      (t) => t.symbol.toLowerCase().includes(lower) || t.name.toLowerCase().includes(lower),
-    )
+    .filter((t) => t.symbol.toLowerCase().includes(lower) || t.name.toLowerCase().includes(lower))
     .slice(0, 10)
     .map((t) => ({
       type: "token" as const,
@@ -168,13 +201,12 @@ export function createAlert(input: {
 }
 
 export function listAlerts(chatId?: string) {
-  return [...alerts.values()].filter(
-    (a) => a.active && (!chatId || a.telegramChatId === chatId),
-  );
+  return [...alerts.values()].filter((a) => a.active && (!chatId || a.telegramChatId === chatId));
 }
 
 export function evaluateAlerts() {
   const fired: { alertId: string; message: string; telegramChatId?: string }[] = [];
+  if (!demoMode) return fired;
   for (const a of alerts.values()) {
     if (!a.active || !a.tokenAddress) continue;
     const t = getToken(a.tokenAddress);
@@ -183,7 +215,7 @@ export function evaluateAlerts() {
       fired.push({
         alertId: a.id,
         telegramChatId: a.telegramChatId,
-        message: `Cluster activity on $${t.symbol}: ${t.cluster.walletCount} wallets · ${t.probableConnectedSupplyPct}% probable connected`,
+        message: `[DEMO] Cluster activity on $${t.symbol}: ${t.cluster.walletCount} wallets · ${t.probableConnectedSupplyPct}% probable connected`,
       });
     }
   }
@@ -192,6 +224,7 @@ export function evaluateAlerts() {
 
 export function metricsSnapshot() {
   return {
+    demoMode,
     tokens: tokenStore.size,
     wallets: walletStore.size,
     alerts: alerts.size,

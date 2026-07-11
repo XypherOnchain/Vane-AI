@@ -129,7 +129,15 @@ export interface GraphNode {
   clusterId?: string;
 }
 
+/**
+ * Marks where a payload came from. "demo" payloads are simulated demonstrations
+ * (only served when VANE_DEMO_MODE is enabled) and must be visibly labeled in
+ * every surface. "indexed" payloads come from real chain data.
+ */
+export type DataSource = "indexed" | "demo";
+
 export interface TokenOverview {
+  dataSource?: DataSource;
   address: string;
   chainId: number;
   name: string;
@@ -168,6 +176,7 @@ export interface TokenOverview {
 }
 
 export interface RadarCard {
+  dataSource?: DataSource;
   address: string;
   name: string;
   symbol: string;
@@ -196,6 +205,7 @@ export interface RadarCard {
 }
 
 export interface WalletDna {
+  dataSource?: DataSource;
   address: string;
   dnaClass: string;
   walletAgeDays: number;

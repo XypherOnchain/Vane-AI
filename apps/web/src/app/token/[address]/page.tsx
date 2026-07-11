@@ -1,23 +1,11 @@
 import Link from "next/link";
-import {
-  formatPct,
-  formatUsd,
-  shortAddress,
-  type TokenOverview,
-} from "@vane/shared-types";
+import { formatPct, formatUsd, shortAddress, type TokenOverview } from "@vane/shared-types";
 import { apiGet } from "@/lib/api";
 import { TokenAsk } from "@/components/TokenAsk";
 
 export const dynamic = "force-dynamic";
 
-const tabs = [
-  "overview",
-  "holders",
-  "graph",
-  "contract",
-  "developer",
-  "alerts",
-] as const;
+const tabs = ["overview", "holders", "graph", "contract", "developer", "alerts"] as const;
 
 export default async function TokenPage({
   params,
@@ -38,8 +26,13 @@ export default async function TokenPage({
   if (!token) {
     return (
       <div className="px-4 py-12 md:px-8">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold">Token not found</h1>
-        <p className="mt-2 text-[var(--color-muted)]">Indexing may still be running for {address}</p>
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold">
+          Not indexed yet
+        </h1>
+        <p className="mt-2 text-[var(--color-muted)]">
+          Vane has no verified chain data for {address}. It never substitutes simulated findings —
+          this page will populate once indexing covers the token.
+        </p>
         <Link href="/radar" className="mt-4 inline-block text-[var(--color-accent)]">
           Back to Radar
         </Link>
@@ -63,6 +56,11 @@ export default async function TokenPage({
 
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
+          {token.dataSource === "demo" && (
+            <p className="mb-2 inline-block rounded border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-warn)]">
+              Demonstration data — not live
+            </p>
+          )}
           <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)]">
             Vane Scan · {token.launchpad ?? "Robinhood"} · {token.processingState}
           </p>
@@ -107,7 +105,9 @@ export default async function TokenPage({
         ].map(([k, v]) => (
           <div key={k} className="border-t border-[var(--color-line)] pt-3">
             <div className="text-[11px] text-[var(--color-muted)]">{k}</div>
-            <div className="tabular font-[family-name:var(--font-display)] text-lg font-bold">{v}</div>
+            <div className="tabular font-[family-name:var(--font-display)] text-lg font-bold">
+              {v}
+            </div>
           </div>
         ))}
       </div>
@@ -131,11 +131,16 @@ export default async function TokenPage({
       {active === "overview" && (
         <div className="mt-6 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
           <section>
-            <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">Vane summary</h2>
+            <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">
+              Vane summary
+            </h2>
             <p className="mt-3 max-w-2xl leading-relaxed text-[var(--color-fg)]">{token.summary}</p>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
               {token.summaryEvidenceIds.map((id) => (
-                <span key={id} className="rounded border border-[var(--color-line)] px-2 py-1 font-mono">
+                <span
+                  key={id}
+                  className="rounded border border-[var(--color-line)] px-2 py-1 font-mono"
+                >
                   {id}
                 </span>
               ))}
@@ -155,7 +160,9 @@ export default async function TokenPage({
             <TokenAsk tokenAddress={token.address} />
           </section>
           <section>
-            <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">Integrity breakdown</h2>
+            <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">
+              Integrity breakdown
+            </h2>
             <div className="mt-4 space-y-3">
               {(
                 [
@@ -183,7 +190,8 @@ export default async function TokenPage({
               ))}
             </div>
             <p className="mt-4 text-xs text-[var(--color-muted)]">
-              Momentum is separate and never implies safety. Score version {token.integrity.version}.
+              Momentum is separate and never implies safety. Score version {token.integrity.version}
+              .
             </p>
           </section>
         </div>
@@ -201,9 +209,7 @@ export default async function TokenPage({
                     {shortAddress(h.address, 5)}
                   </Link>
                   {h.label && <span className="text-xs text-[var(--color-muted)]">{h.label}</span>}
-                  {h.clusterId && (
-                    <span className="text-xs text-[var(--color-warn)]">cluster</span>
-                  )}
+                  {h.clusterId && <span className="text-xs text-[var(--color-warn)]">cluster</span>}
                 </div>
                 <span className="tabular">{formatPct(h.pctSupply)}</span>
               </div>
@@ -253,7 +259,9 @@ export default async function TokenPage({
               </div>
               <h3 className="mt-2 font-semibold">{f.title}</h3>
               <p className="mt-1 text-sm text-[var(--color-muted)]">{f.summary}</p>
-              <p className="mt-2 font-mono text-xs text-[var(--color-muted)]">{f.technicalDetails}</p>
+              <p className="mt-2 font-mono text-xs text-[var(--color-muted)]">
+                {f.technicalDetails}
+              </p>
             </div>
           ))}
         </section>
@@ -268,13 +276,17 @@ export default async function TokenPage({
           {token.deployerFunding && (
             <p className="mt-2 text-sm text-[var(--color-muted)]">
               Funded by{" "}
-              <Link href={`/wallet/${token.deployerFunding}`} className="font-mono text-[var(--color-fg)]">
+              <Link
+                href={`/wallet/${token.deployerFunding}`}
+                className="font-mono text-[var(--color-fg)]"
+              >
                 {shortAddress(token.deployerFunding, 6)}
               </Link>
             </p>
           )}
           <p className="mt-4 text-sm text-[var(--color-muted)]">
-            Prior-launch outcomes and network mapping expand as the indexer backfills deployer history.
+            Prior-launch outcomes and network mapping expand as the indexer backfills deployer
+            history.
           </p>
         </section>
       )}
@@ -283,8 +295,8 @@ export default async function TokenPage({
         <section className="mt-6">
           <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">Alerts</h2>
           <p className="mt-2 text-sm text-[var(--color-muted)]">
-            Create cluster-sale, deployer-sale, liquidity, and score alerts from the authenticated app.
-            Delivery: website notifications and Intelligence Bot DM.
+            Create cluster-sale, deployer-sale, liquidity, and score alerts from the authenticated
+            app. Delivery: website notifications and Intelligence Bot DM.
           </p>
           <Link
             href="/app/alerts"

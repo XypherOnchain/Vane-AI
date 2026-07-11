@@ -4,13 +4,20 @@ import { apiGet } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-async function loadRadar(mode: "radar" | "new-pairs" | "trending"): Promise<RadarCard[]> {
-  const path = mode === "radar" ? "/v1/radar" : mode === "new-pairs" ? "/v1/new-pairs" : "/v1/trending";
+interface RadarResponse {
+  items: RadarCard[];
+  demoMode?: boolean;
+  status?: "not_indexed";
+  message?: string;
+}
+
+async function loadRadar(mode: "radar" | "new-pairs" | "trending"): Promise<RadarResponse> {
+  const path =
+    mode === "radar" ? "/v1/radar" : mode === "new-pairs" ? "/v1/new-pairs" : "/v1/trending";
   try {
-    const data = await apiGet<{ items: RadarCard[] }>(path);
-    return data.items;
+    return await apiGet<RadarResponse>(path);
   } catch {
-    return [];
+    return { items: [] };
   }
 }
 
@@ -21,7 +28,8 @@ export default async function RadarPage({
 }) {
   const sp = await searchParams;
   const mode = (sp.mode as "radar" | "new-pairs" | "trending") || "radar";
-  let items = await loadRadar(mode === "new-pairs" || mode === "trending" ? mode : "radar");
+  const radar = await loadRadar(mode === "new-pairs" || mode === "trending" ? mode : "radar");
+  let items = radar.items;
   if (sp.q) {
     const lower = sp.q.toLowerCase();
     items = items.filter(
@@ -34,6 +42,12 @@ export default async function RadarPage({
 
   return (
     <div className="px-4 py-8 pb-24 md:px-8">
+      {radar.demoMode && (
+        <div className="mb-4 rounded-lg border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/10 px-4 py-2 text-xs text-[var(--color-warn)]">
+          Demonstration data — VANE_DEMO_MODE is enabled. Nothing on this page is live chain
+          intelligence.
+        </div>
+      )}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight">
@@ -83,7 +97,10 @@ export default async function RadarPage({
           </thead>
           <tbody>
             {items.map((t) => (
-              <tr key={t.address} className="border-b border-[var(--color-line)] hover:bg-white/[0.02]">
+              <tr
+                key={t.address}
+                className="border-b border-[var(--color-line)] hover:bg-white/[0.02]"
+              >
                 <td className="px-4 py-3">
                   <Link href={`/token/${t.address}`} className="font-semibold">
                     ${t.symbol}
@@ -137,7 +154,9 @@ export default async function RadarPage({
         </table>
         {items.length === 0 && (
           <p className="p-6 text-sm text-[var(--color-muted)]">
-            No tokens yet. Start the API (`pnpm --filter @vane/api dev`).
+            {radar.status === "not_indexed"
+              ? "Not indexed yet — Vane only shows real chain data. Radar will populate as the indexer catches up."
+              : "No tokens to show. Make sure the API is running (pnpm dev:web)."}
           </p>
         )}
       </div>

@@ -3,7 +3,7 @@ import { Redis } from "ioredis";
 type RedisClient = InstanceType<typeof Redis>;
 
 let redis: RedisClient | null = null;
-let memory = new Map<string, { value: string; expires: number }>();
+const memory = new Map<string, { value: string; expires: number }>();
 
 export function getRedis(): RedisClient | null {
   const url = process.env.REDIS_URL;

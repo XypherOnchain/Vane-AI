@@ -4,11 +4,7 @@ import { apiGet } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-export default async function WalletPage({
-  params,
-}: {
-  params: Promise<{ address: string }>;
-}) {
+export default async function WalletPage({ params }: { params: Promise<{ address: string }> }) {
   const { address } = await params;
   let wallet: WalletDna | null = null;
   try {
@@ -28,7 +24,9 @@ export default async function WalletPage({
   return (
     <div className="px-4 py-8 pb-24 md:px-8">
       <p className="font-mono text-[11px] text-[var(--color-muted)]">WALLET DNA</p>
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">{wallet.dnaClass}</h1>
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">
+        {wallet.dnaClass}
+      </h1>
       <p className="mt-1 font-mono text-sm text-[var(--color-muted)]">{wallet.address}</p>
       <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
@@ -45,7 +43,8 @@ export default async function WalletPage({
       </div>
       <p className="mt-6 max-w-xl text-sm">{wallet.recentBehaviorNote}</p>
       <p className="mt-2 text-xs text-[var(--color-muted)]">
-        Realized and unrealized results are separated. Transfers are not automatically treated as trades.
+        Realized and unrealized results are separated. Transfers are not automatically treated as
+        trades.
       </p>
       <Link href="/radar" className="mt-6 inline-block text-[var(--color-accent)]">
         Back to Radar

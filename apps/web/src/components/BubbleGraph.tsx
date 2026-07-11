@@ -23,7 +23,13 @@ export function BubbleGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Graph
     const cy = 280;
     const placed = new Map<string, { x: number; y: number; r: number; node: GraphNode }>();
     const ringOf = (n: GraphNode) =>
-      n.category === "deployer" ? 0 : n.category === "deployer_linked" ? 1 : n.category === "probable_cluster" ? 2 : 3;
+      n.category === "deployer"
+        ? 0
+        : n.category === "deployer_linked"
+          ? 1
+          : n.category === "probable_cluster"
+            ? 2
+            : 3;
     nodes.forEach((n, i) => {
       const ring = ringOf(n);
       const peers = nodes.filter((x) => ringOf(x) === ring);
@@ -53,10 +59,7 @@ export function BubbleGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Graph
           className="mt-2 w-full"
         />
       </label>
-      <svg
-        viewBox="0 0 840 560"
-        className="mt-4 w-full rounded-2xl bg-black/25"
-      >
+      <svg viewBox="0 0 840 560" className="mt-4 w-full rounded-2xl bg-black/25">
         {edges.map((e) => {
           const a = layout.get(e.from);
           const b = layout.get(e.to);
@@ -98,14 +101,15 @@ export function BubbleGraph({ nodes, edges }: { nodes: GraphNode[]; edges: Graph
           <p className="mt-2 text-sm">{selected.why}</p>
           <p className="mt-2 font-mono text-xs text-[var(--color-muted)]">
             {shortAddress(selected.from)} → {shortAddress(selected.to)} ·{" "}
-            {Math.round(selected.confidence * 100)}% · {selected.confirmed ? "confirmed" : "inferred"}
+            {Math.round(selected.confidence * 100)}% ·{" "}
+            {selected.confirmed ? "confirmed" : "inferred"}
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
             Evidence: {selected.evidenceIds.join(", ") || "—"}
           </p>
           <p className="mt-3 text-xs text-[var(--color-muted)]">
-            These wallets share a funding source and display coordinated behavior — not automatic proof
-            of common ownership.
+            These wallets share a funding source and display coordinated behavior — not automatic
+            proof of common ownership.
           </p>
         </div>
       )}

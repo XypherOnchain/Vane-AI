@@ -20,15 +20,27 @@ export interface NetworkConfig {
   nativeCurrency: { name: string; symbol: string; decimals: number };
 }
 
-export function getNetworkConfig(env: VaneEnv, which: "mainnet" | "testnet" = env.ACTIVE_CHAIN): NetworkConfig {
+const PUBLIC_RPC = {
+  mainnet: "https://rpc.mainnet.chain.robinhood.com",
+  testnet: "https://rpc.testnet.chain.robinhood.com",
+} as const;
+
+export function getNetworkConfig(
+  env: VaneEnv,
+  which: "mainnet" | "testnet" = env.ACTIVE_CHAIN,
+): NetworkConfig {
+  // env.rpc is resolved for the ACTIVE_CHAIN with strict production validation
+  // already applied by @vane/config. Legacy per-network variables remain as a
+  // development fallback when explicitly targeting the other network.
+  const isActive = which === env.ACTIVE_CHAIN;
   if (which === "testnet") {
     return {
       id: "robinhood-testnet",
       chainId: 46630,
       name: "Robinhood Chain Testnet",
-      rpcUrl: env.ROBINHOOD_TESTNET_RPC_URL,
-      rpcBackupUrl: env.ROBINHOOD_TESTNET_RPC_BACKUP_URL,
-      wssUrl: env.ROBINHOOD_TESTNET_WS_URL,
+      rpcUrl: (isActive ? env.rpc.primary : env.ROBINHOOD_TESTNET_RPC_URL) ?? PUBLIC_RPC.testnet,
+      rpcBackupUrl: isActive ? env.rpc.backup : env.ROBINHOOD_TESTNET_RPC_BACKUP_URL,
+      wssUrl: isActive ? env.rpc.wsPrimary : env.ROBINHOOD_TESTNET_WS_URL,
       explorerUrl: "https://explorer.testnet.chain.robinhood.com",
       nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     };
@@ -37,9 +49,9 @@ export function getNetworkConfig(env: VaneEnv, which: "mainnet" | "testnet" = en
     id: "robinhood-mainnet",
     chainId: 4663,
     name: "Robinhood Chain",
-    rpcUrl: env.ROBINHOOD_MAINNET_RPC_URL,
-    rpcBackupUrl: env.ROBINHOOD_MAINNET_RPC_BACKUP_URL,
-    wssUrl: env.ROBINHOOD_MAINNET_WS_URL,
+    rpcUrl: (isActive ? env.rpc.primary : env.ROBINHOOD_MAINNET_RPC_URL) ?? PUBLIC_RPC.mainnet,
+    rpcBackupUrl: isActive ? env.rpc.backup : env.ROBINHOOD_MAINNET_RPC_BACKUP_URL,
+    wssUrl: isActive ? env.rpc.wsPrimary : env.ROBINHOOD_MAINNET_WS_URL,
     explorerUrl: "https://robinhoodchain.blockscout.com",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   };
@@ -168,10 +180,34 @@ export function createRobinhoodProvider(env: VaneEnv, which?: "mainnet" | "testn
 }
 
 export const erc20Abi = [
-  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
-  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
-  { type: "function", name: "totalSupply", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  {
+    type: "function",
+    name: "name",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "string" }],
+  },
+  {
+    type: "function",
+    name: "symbol",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "string" }],
+  },
+  {
+    type: "function",
+    name: "decimals",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint8" }],
+  },
+  {
+    type: "function",
+    name: "totalSupply",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
   {
     type: "function",
     name: "balanceOf",

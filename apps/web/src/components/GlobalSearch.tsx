@@ -19,7 +19,11 @@ export function GlobalSearch({ large = false }: { large?: boolean }) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "/" && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+      if (
+        e.key === "/" &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
         e.preventDefault();
         inputRef.current?.focus();
       }
@@ -99,7 +103,9 @@ export function GlobalSearch({ large = false }: { large?: boolean }) {
               <div>
                 <div className="text-sm font-medium">{r.title}</div>
                 {r.subtitle && (
-                  <div className="mt-0.5 font-mono text-xs text-[var(--color-muted)]">{r.subtitle}</div>
+                  <div className="mt-0.5 font-mono text-xs text-[var(--color-muted)]">
+                    {r.subtitle}
+                  </div>
                 )}
               </div>
               <span className="text-[10px] uppercase tracking-wider text-[var(--color-muted)]">

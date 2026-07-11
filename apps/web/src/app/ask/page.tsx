@@ -33,7 +33,8 @@ function AskInner() {
         Ask Vane
       </h1>
       <p className="mt-2 max-w-xl text-sm text-[var(--color-muted)]">
-        Evidence-backed answers. Include a token or wallet address when asking about a specific entity.
+        Evidence-backed answers. Include a token or wallet address when asking about a specific
+        entity.
       </p>
       <div className="mt-6 max-w-xl">
         <GlobalSearch />

@@ -17,10 +17,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install
-      - run: pnpm --filter @vane/shared typecheck
-      - run: pnpm --filter @vane/chain typecheck
-      - run: pnpm --filter @vane/api typecheck
-      - run: pnpm --filter @vane/bot typecheck
-      - run: pnpm --filter @vane/indexer typecheck
-      - run: pnpm --filter @vane/web typecheck
+      - run: pnpm install --frozen-lockfile
+      - name: Format check
+        run: pnpm format:check
+      - name: Lint (all workspaces)
+        run: pnpm lint
+      - name: Type check (all workspaces)
+        run: pnpm typecheck
+      - name: Unit tests (all workspaces)
+        run: pnpm test
+      - name: Production build (all workspaces)
+        run: pnpm build

@@ -31,7 +31,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="text-xs text-[var(--color-muted)]">Robinhood Chain</span>
             </Link>
             <nav className="flex items-center gap-4 text-sm">
-              <Link href="/radar" className="text-[var(--color-muted)] hover:text-[var(--color-fg)]">
+              <Link
+                href="/radar"
+                className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
+              >
                 Radar
               </Link>
               <Link href="/ask" className="text-[var(--color-muted)] hover:text-[var(--color-fg)]">
@@ -60,7 +63,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div className="flex h-16 items-center justify-between px-4">
           {!collapsed && (
-            <Link href="/" className="font-[family-name:var(--font-display)] text-lg font-extrabold">
+            <Link
+              href="/"
+              className="font-[family-name:var(--font-display)] text-lg font-extrabold"
+            >
               Vane
             </Link>
           )}

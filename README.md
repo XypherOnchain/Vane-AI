@@ -4,40 +4,83 @@
 
 Repo: [XypherOnchain/Vane-AI](https://github.com/XypherOnchain/Vane-AI)
 
-## Current focus
+## Project status — honest assessment
 
-1. **Web app first** — landing, Radar, token scan, graph, Ask Vane  
-2. Shared backend APIs  
-3. Telegram bots deferred (stubs only) until intelligence is stable  
+Vane is currently a **prototype foundation**, not a live intelligence platform. The
+monorepo, web surfaces, API skeleton, and early indexer exist; production indexing,
+DEX/launchpad decoding, holder accounting, graph evidence, contract scanning,
+evidence-backed AI, and the Telegram bots are still being built (see the completion
+plan, PR2 onward).
 
-## Quick start
+### Truthfulness rules (enforced in code)
+
+- `VANE_DEMO_MODE` defaults to **false**. Simulated data only loads when it is
+  deliberately enabled, and every demo payload is marked `dataSource: "demo"`.
+- Production **refuses to start** with demo mode enabled, with missing critical
+  environment variables, or with the rate-limited public Robinhood RPC as a provider.
+- When data is not indexed, the API returns `not_indexed` — it never substitutes
+  simulated findings.
+
+## Quick start (from the repository root, any folder)
 
 ```bash
-cd /Users/andrewjayyosi/CascadeProjects/Vane-AI
-cp .env.example .env   # add secrets
+cp .env.example .env    # add secrets; set VANE_DEMO_MODE=true to explore with demo data
 pnpm install
-pnpm db:up             # Postgres + Redis (Docker)
-pnpm dev:web           # API + Next.js
+pnpm db:up              # Postgres + Redis (Docker)
+pnpm dev:web            # API + Next.js
 ```
 
-- Web: http://localhost:3000  
-- API health: http://localhost:4000/health  
+- Web: http://localhost:3000
+- API liveness: http://localhost:4000/health/live
+- API readiness: http://localhost:4000/health/ready (503 until Postgres, Redis, and RPC are reachable)
+
+## Validation
+
+Every workspace has real commands — no placeholder scripts:
+
+```bash
+pnpm lint        # ESLint across all apps and packages
+pnpm typecheck   # tsc --noEmit everywhere
+pnpm test        # vitest (config, shared-types, telegram formatting, API gating)
+pnpm build       # production builds
+```
 
 ## Architecture
 
-See the complete build plan. Monorepo apps:
+```text
+apps/
+├── web                     # Next.js product UI
+├── api                     # shared REST API (also serves both bots later)
+├── indexer                 # Robinhood Chain ingestion (v2 pipeline lands in PR3)
+├── worker                  # background jobs (stub)
+├── telegram-pairs          # New Pairs bot (stub)
+├── telegram-intelligence   # Intelligence bot (stub)
+└── admin                   # operations app (stub)
 
-- `apps/web` — complete product UI  
-- `apps/api` — shared REST API  
-- `apps/indexer` — Robinhood Chain ingestion  
-- `apps/worker` — background jobs (stub)  
-- `apps/telegram-pairs` / `apps/telegram-intelligence` — stubs  
+packages/
+├── config                  # env schema + strict production validation
+├── shared-types            # canonical shared types (single source of truth)
+├── chain                   # Robinhood Chain config + RPC provider w/ failover
+├── telegram                # reusable Telegram formatting (extracted from legacy bot)
+├── database, dex-adapters, launchpad-adapters, contract-scanner,
+│   graph-engine, intelligence, scoring, alerts, ai, validation,
+│   observability, ui       # contracts defined, implementations land per plan
+```
 
-## Phase status
+The legacy `apps/bot` was removed; its reusable formatting logic now lives in
+`packages/telegram`. The duplicate `packages/shared` shim and `infra/` SQL
+directory were removed — `packages/shared-types` and `infrastructure/sql` are
+canonical.
 
-- Phase 0 foundations: in progress / local runnable  
-- Web main surfaces: landing, radar, new-pairs, trending, token tabs, graph, wallet, ask  
-- Telegram: deferred  
+## Environment
+
+See `.env.example` for the full list. Required in production (startup fails without them):
+
+```text
+DATABASE_URL, REDIS_URL,
+ROBINHOOD_RPC_PRIMARY, ROBINHOOD_RPC_BACKUP,
+CORS_ORIGINS, INTERNAL_API_SECRET, AUTH_SECRET
+```
 
 ## Docs
 

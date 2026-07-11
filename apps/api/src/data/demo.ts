@@ -33,10 +33,7 @@ export function buildIntegrity(): IntegrityScore {
     version: "integrity.v1",
     evidence: {
       contractSafety: ["Ownership renounced", "No mint detected", "Transfer tax 0%"],
-      distributionQuality: [
-        "Top-10 visible (ex-LP): 18.2%",
-        "Probable connected cluster: 26.7%",
-      ],
+      distributionQuality: ["Top-10 visible (ex-LP): 18.2%", "Probable connected cluster: 26.7%"],
       liquidityQuality: ["Liquidity $12.1K", "LP unlocked — removal risk"],
       developerHistory: ["2 prior launches", "One prior launch −94% after coordinated sell"],
       marketIntegrity: ["Buy/sell skew elevated", "Repeated wallet participation moderate"],
@@ -84,10 +81,30 @@ export function buildCluster(): ClusterSummary {
 export function buildHolders(): HolderRow[] {
   return [
     { address: addr(0xc0), pctSupply: 24.4, balance: "244000000", isLp: true, label: "LP" },
-    { address: clusterWallets[0]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
-    { address: clusterWallets[1]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
-    { address: clusterWallets[2]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
-    { address: clusterWallets[3]!, pctSupply: 2.0, balance: "20000000", clusterId: "cluster-demo-1" },
+    {
+      address: clusterWallets[0]!,
+      pctSupply: 2.0,
+      balance: "20000000",
+      clusterId: "cluster-demo-1",
+    },
+    {
+      address: clusterWallets[1]!,
+      pctSupply: 2.0,
+      balance: "20000000",
+      clusterId: "cluster-demo-1",
+    },
+    {
+      address: clusterWallets[2]!,
+      pctSupply: 2.0,
+      balance: "20000000",
+      clusterId: "cluster-demo-1",
+    },
+    {
+      address: clusterWallets[3]!,
+      pctSupply: 2.0,
+      balance: "20000000",
+      clusterId: "cluster-demo-1",
+    },
     { address: addr(0xd1), pctSupply: 1.8, balance: "18000000" },
     { address: addr(0xd2), pctSupply: 1.5, balance: "15000000" },
     { address: deployer, pctSupply: 1.2, balance: "12000000", label: "Deployer" },
@@ -192,7 +209,7 @@ export function buildTokenOverview(address?: string): TokenOverview {
   };
 }
 
-export function buildGraph(tokenAddress: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+export function buildGraph(_tokenAddress: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const holders = buildHolders();
   const nodes: GraphNode[] = [
     { id: deployer, address: deployer, size: 40, category: "deployer", label: "Deployer" },
