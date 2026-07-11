@@ -6,7 +6,14 @@ import { createRobinhoodProvider } from "@vane/chain";
 import { maybePolishWithLlm, runAgent } from "./services/agent.js";
 import { dbHealthy } from "./services/db.js";
 import { getRedis } from "./services/cache.js";
-import { listIndexedRadar } from "./services/indexed.js";
+import {
+  getIndexedGraph,
+  getIndexedTokenOverview,
+  getIndexedWallet,
+  listIndexedRadar,
+  searchIndexed,
+} from "./services/indexed.js";
+import { fetchOhlcv, fetchTrades } from "./services/market.js";
 import {
   createAlert,
   createReport,
@@ -167,8 +174,10 @@ const NOT_INDEXED = {
   message: "This data is not indexed yet. Vane never substitutes simulated findings.",
 };
 
-app.get("/v1/search", (req, res) => {
-  res.json({ results: search(String(req.query.q ?? "")), demoMode });
+app.get("/v1/search", async (req, res) => {
+  const q = String(req.query.q ?? "");
+  if (demoMode) return res.json({ results: search(q), demoMode });
+  res.json({ results: await searchIndexed(q), demoMode: false });
 });
 
 app.get("/v1/radar", async (_req, res) => {
@@ -195,7 +204,10 @@ app.get("/v1/trending", async (_req, res) => {
 });
 
 async function tokenOr404(req: express.Request, res: express.Response) {
-  const token = await getTokenCached(req.params.address as string);
+  const address = req.params.address as string;
+  const token = demoMode
+    ? await getTokenCached(address)
+    : await getIndexedTokenOverview(address);
   if (!token) {
     res.status(404).json({ error: "Token not indexed", ...NOT_INDEXED });
     return null;
@@ -213,10 +225,27 @@ app.get("/v1/tokens/:address/overview", async (req, res) => {
   if (token) res.json(token);
 });
 
-app.get("/v1/tokens/:address/graph", (req, res) => {
-  const graph = getGraph(req.params.address);
+app.get("/v1/tokens/:address/graph", async (req, res) => {
+  const graph = demoMode
+    ? getGraph(req.params.address)
+    : await getIndexedGraph(req.params.address);
   if (!graph) return res.status(404).json({ error: "Graph not available", ...NOT_INDEXED });
   res.json(graph);
+});
+
+// Live market endpoints (GeckoTerminal `robinhood` network — real pools/trades).
+app.get("/v1/tokens/:address/candles", async (req, res) => {
+  const candles = await fetchOhlcv(
+    req.params.address,
+    String(req.query.tf ?? "1h"),
+    Number(req.query.limit ?? 300),
+  );
+  res.json({ candles, source: "geckoterminal" });
+});
+
+app.get("/v1/tokens/:address/trades", async (req, res) => {
+  const trades = await fetchTrades(req.params.address, Number(req.query.limit ?? 30));
+  res.json({ trades, source: "geckoterminal" });
 });
 
 app.get("/v1/tokens/:address/scores", async (req, res) => {
@@ -240,8 +269,10 @@ app.get("/v1/tokens/:address/clusters", async (req, res) => {
   if (token) res.json({ dataSource: token.dataSource, cluster: token.cluster });
 });
 
-app.get("/v1/wallets/:address", (req, res) => {
-  const wallet = getWallet(req.params.address);
+app.get("/v1/wallets/:address", async (req, res) => {
+  const wallet = demoMode
+    ? getWallet(req.params.address)
+    : await getIndexedWallet(req.params.address);
   if (!wallet) return res.status(404).json({ error: "Wallet not indexed", ...NOT_INDEXED });
   res.json(wallet);
 });

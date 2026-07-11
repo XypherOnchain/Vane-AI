@@ -132,6 +132,33 @@ async function upsertPool(
   );
 }
 
+/**
+ * Metadata reads can fail transiently during backfill (RPC throttling), leaving
+ * tokens with null name/symbol. Retry a small batch every loop so the radar
+ * heals itself instead of showing "Unknown" forever.
+ */
+async function repairMissingMetadata(deps: WatcherDeps): Promise<number> {
+  const r = await deps.getPool().query<{ address: string }>(
+    `SELECT address FROM tokens
+     WHERE chain_id = $1 AND (name IS NULL OR symbol IS NULL)
+     ORDER BY created_block DESC NULLS LAST LIMIT 10`,
+    [deps.provider.config.chainId],
+  );
+  let repaired = 0;
+  for (const row of r.rows) {
+    const meta = await readTokenMetadata(deps, row.address as `0x${string}`);
+    if (meta.name == null && meta.symbol == null) continue;
+    await deps.getPool().query(
+      `UPDATE tokens SET name = COALESCE($3, name), symbol = COALESCE($4, symbol),
+        decimals = $5, total_supply = COALESCE($6, total_supply)
+       WHERE chain_id = $1 AND address = $2`,
+      [deps.provider.config.chainId, row.address, meta.name, meta.symbol, meta.decimals, meta.totalSupply],
+    );
+    repaired += 1;
+  }
+  return repaired;
+}
+
 async function processRange(deps: WatcherDeps, from: bigint, to: bigint): Promise<number> {
   const addresses = watchedAddresses();
   const dexAdapters = enabledDexAdapters();
@@ -229,6 +256,12 @@ export async function runIntegrationsWatcher(deps: WatcherDeps): Promise<never> 
       }
     } catch (e) {
       console.warn(`[integrations] loop error`, (e as Error).message);
+    }
+    try {
+      const repaired = await repairMissingMetadata(deps);
+      if (repaired > 0) console.log(`[integrations] repaired metadata for ${repaired} tokens`);
+    } catch {
+      /* retried next loop */
     }
     await new Promise((r) => setTimeout(r, deps.pollMs));
   }
