@@ -1,46 +1,34 @@
-# Vane Desktop
+# LEGACY — Electron → Next.js Debug shell
 
-Downloadable Electron app — the **Cursor-like** surface for Vane.
+> **Status: LEGACY / transitional**  
+> Primary product is the Code—OSS IDE at `apps/desktop-ide`.  
+> See [ADR-001](../../docs/architecture/ADR-001-desktop-ide-primary.md) and [DESKTOP_IDE.md](../../docs/DESKTOP_IDE.md).
 
-## Why desktop?
+This package is a thin Electron window that loads the Next.js Debug UI (`APP_URL`, default `http://localhost:3000/debug`). It is **not** the Vane IDE (no editor, terminal, or Git workbench).
 
-A website is fine for demos. A desktop app is where developers actually live:
+Retain until `apps/desktop-ide` can:
 
-- Local repo paths on disk
-- Deep links from Telegram (`vane://debug/tx/0x…`) open the exact inspector
-- Native menu, multi-window later, local encrypted vault (Phase 4)
-- Feels like Cursor / VS Code, not another SaaS tab
+1. Boot as Vane AI  
+2. Open a folder  
+3. Use integrated terminal + Git  
+4. Show Agent / Wallets / Transactions views  
 
-## Dev
+Then remove or archive this shell.
 
-1. Start the web UI + API (from monorepo root):
-
-```bash
-pnpm dev:web
-# or: npx pm2 start …
-```
-
-2. Open the desktop shell:
+## Dev (legacy)
 
 ```bash
-pnpm desktop
-# → apps/desktop Electron window loads http://localhost:3000/debug
+pnpm dev:web    # from monorepo root
+pnpm desktop    # Electron → web Debug
 ```
 
-## Ship installers
-
-```bash
-pnpm desktop:dist
-# → apps/desktop/release/  (.dmg / .exe / AppImage)
-```
-
-Requires code-signing credentials for macOS notarization in production; unsigned builds work for local testing.
-
-## Deep links
+## Deep links (legacy)
 
 | URL | Opens |
 |-----|--------|
-| `vane://debug` | Workspace |
-| `vane://debug/tx/<hash>` | Tx inspector deep link |
+| `vane://debug` | Web workspace |
+| `vane://debug/tx/<hash>` | Web tx inspector |
 
-Telegram failure alerts include both a web URL and a `vane://` link.
+## Security note
+
+Preload stays sandboxed (`contextIsolation`, no Node in renderer). Do not add vault or signing here — that belongs in `vane-walletd` (later phase).

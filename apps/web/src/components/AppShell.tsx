@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ModeBanner } from "./ModeBanner";
 
-/** Product nav — Debug first; later pillars appear as routes ship. */
+/** Secondary web Debug dogfood — primary product is Code—OSS IDE (ADR-001). */
 const nav = [
   { href: "/debug", label: "Workspace", exact: true },
   { href: "/debug/chat", label: "AI Chat" },
@@ -15,7 +15,7 @@ const nav = [
   { href: "/build", label: "Build" },
   { href: "/flow", label: "Flow" },
   { href: "/operate", label: "Operate" },
-  { href: "/agent", label: "Agent" },
+  { href: "/agent", label: "Agent jobs" },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href="/debug"
                 className="rounded-full bg-[var(--color-accent)] px-4 py-2 font-semibold text-[#04140d]"
               >
-                Open workspace
+                Open Debug demo
               </Link>
             </nav>
           </div>
@@ -80,11 +80,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <p
-          className={`px-4 pb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-muted)] ${
+          className={`px-4 pb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-warn)] ${
             collapsed ? "hidden" : ""
           }`}
         >
-          Debug · Phase 1
+          Web demo · IDE is primary
         </p>
         <nav className="flex flex-1 flex-col gap-1 px-2 py-2">
           {nav.map((item) => {
@@ -120,7 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </p>
           <p className="hidden text-sm text-[var(--color-muted)] md:block">
-            Paste a tx · connect a repo · simulate before live
+            Secondary web Debug — primary product is the Code—OSS desktop IDE
           </p>
           <span className="rounded-full border border-[var(--color-line)] px-2.5 py-1 font-mono text-[11px] text-[var(--color-muted)]">
             chain 4663

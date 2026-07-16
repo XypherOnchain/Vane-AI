@@ -29,15 +29,15 @@ export default function AgentPage() {
 
   return (
     <div className="px-4 py-8 md:px-8">
-      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--color-accent)]">
-        Phase 5 · Agent
+      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--color-warn)]">
+        Web demo · not the IDE agent
       </p>
       <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold">
         Policy-constrained jobs
       </h2>
       <p className="mt-2 max-w-2xl text-sm text-[var(--color-muted)]">
-        Claims, gas top-up, limited rebalance — only within policy. High-value irreversible actions
-        require a human.
+        API demo for policy gates only. The real agent panel lives in the Code—OSS IDE (Phase 2).
+        Claims, gas top-up, limited rebalance — high-value actions require a human.
       </p>
       <div className="mt-6 flex flex-wrap items-end gap-3">
         <label className="text-sm">

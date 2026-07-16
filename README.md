@@ -1,51 +1,54 @@
 # Vane AI
 
-**Cursor for crypto** — a downloadable AI workspace to debug transactions, understand contracts, and safely operate on-chain workflows.
+**Cursor for crypto** — a downloadable Code—OSS–based AI IDE for building, testing, debugging, and safely operating on-chain software.
 
 Repo: [XypherOnchain/Vane-AI](https://github.com/XypherOnchain/Vane-AI)  
-Product framework: [`docs/PRODUCT.md`](./docs/PRODUCT.md)
+Product: [`docs/PRODUCT.md`](./docs/PRODUCT.md) · **ADR-001:** [`docs/architecture/ADR-001-desktop-ide-primary.md`](./docs/architecture/ADR-001-desktop-ide-primary.md)
 
-## Phase 1 product (what ships)
+## Primary product: Desktop IDE
 
-| Screen | Path | Purpose |
-|--------|------|---------|
-| Workspace | `/debug` | Project, repo path, watch-only wallets, Telegram |
-| AI Chat | `/debug/chat` | Paste a tx or ask a question |
-| Tx Inspector | `/debug/tx` | Receipt, logs, revert, risks from RPC |
-| Repair | `/debug/repair` | Patch + test + simulation gate (no live broadcast) |
-| Memory | `/debug/memory` | Incidents + audit log |
+The primary surface is a branded Code—OSS fork (Git submodule):
 
-Radar / new-pairs / trending / watchlists were **removed** from the product. Those URLs redirect to Debug. Matching API routes return `410 Gone`.
+```bash
+# Init submodule + check toolchain
+./scripts/desktop-ide/init.sh
 
-## Quick start
+# Apply/verify Vane product branding
+./scripts/desktop-ide/brand.sh
+
+# Dev build / launch (see docs/DESKTOP_IDE.md)
+./scripts/desktop-ide/dev.sh
+```
+
+Details: [`docs/DESKTOP_IDE.md`](./docs/DESKTOP_IDE.md)
+
+## Secondary: Web Debug dogfood
+
+The Next.js Debug UI remains for demos until flows move into the IDE:
 
 ```bash
 cp .env.example .env
 pnpm install
-pnpm dev:web            # API :4000 + Next.js :3000
-pnpm desktop            # Electron window → Debug workspace
+pnpm dev:web            # API :4000 + Next.js :3000 → /debug
 ```
 
-- Web: http://localhost:3000/debug  
-- Desktop: `pnpm desktop` (loads Debug; deep links `vane://debug/tx/<hash>`)  
-- Installers: `pnpm desktop:dist` → `apps/desktop/release/`
+## Legacy: Electron → Next wrapper
 
-## API surface (Phase 1)
+[`apps/desktop`](./apps/desktop) is **LEGACY**. It only loads the web Debug UI. Prefer `apps/desktop-ide` once it boots.
 
-| Route | Role |
-|-------|------|
-| `/v1/debug/*` | Projects, wallets, contracts, tx inspect, incidents, Telegram alert payloads |
-| `/v1/ai/query` | Chat (no private keys) |
-| `/health/*` | Liveness / readiness |
-| `/v1/radar`, `/v1/tokens/*`, … | **Retired** (`410`) |
+```bash
+pnpm desktop            # legacy shell
+```
 
-## Safety defaults
+## Monorepo packages (shared)
 
-- Simulation mode by default  
-- Watch-only wallets  
-- No live broadcast in Phase 1  
-- Structured audit events for debug actions  
+Reusable crypto/agent packages live here and will be consumed by IDE hosts later — never from the renderer with secrets:
 
-## Later phases
+- `@vane/policy`, `@vane/simulation`, `@vane/project-graph`, `@vane/repo-index`, `@vane/chain`
 
-Build (IDE/extension) → Flow (workflows) → Operate → Agent — see `docs/PRODUCT.md`.
+See [`docs/architecture/reusable-module-inventory.md`](./docs/architecture/reusable-module-inventory.md).
+
+## Security
+
+Private keys must never reach the browser UI, model providers, Telegram, or logs.  
+[`docs/architecture/security-boundaries.md`](./docs/architecture/security-boundaries.md)
