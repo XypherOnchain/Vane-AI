@@ -8,7 +8,7 @@ Product identity: [`PRODUCT.md`](./PRODUCT.md) · Primary architecture: [`archit
 |-------|--------|--------|
 | 0 | Reframe: ADR, inventory, demote web-as-primary | Done (`phase/00-01-code-oss-foundation`) |
 | 1 | Branded Code—OSS shell + Vane views | Done — submodule + `vane-workbench` + smoke |
-| 2 | Agent foundation (models, tools, redaction) | Pending |
+| 2 | Agent foundation (models, tools, redaction) | In progress (`phase/02-agent-core`) |
 | 3 | Crypto project intelligence | Pending |
 | 4 | Local Anvil / tx debug in IDE | Pending |
 | 5 | Wallet vault (`vane-walletd`) | Pending |

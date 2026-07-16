@@ -41,15 +41,24 @@ Upstream Code—OSS uses gulp electron targets after compile. From `apps/desktop
 
 Exact gulp task names follow the fork’s `package.json` / gulpfile — see upstream wiki “How to Contribute”. Unsigned local builds are fine for internal testing.
 
-## Vane UI (Phase 1 placeholders)
+## Vane UI
 
-- Activity bar: **Vane**
-- Views: Agent, Wallets, Transactions
-- Status bar: model · agent · chain · wallet · mode · vault
-- Commands: `Vane: Open Agent|Wallets|Transactions`
-- Settings: `vane.operatingMode`, placeholders for model/chain/wallet
+### Agent (Phase 2 — Cursor-like)
 
-**Not in Phase 1:** vault, signing, swaps, bridges, Live execution.
+1. File → Open Folder  
+2. Command Palette → **Vane: Set Agent API Key**  
+3. Settings: `vane.agent.provider` (`openai`|`anthropic`), `vane.agent.model`  
+4. Activity bar → **Vane** → **Agent**  
+5. Chat to list/read/search/edit files and run approved terminal commands (`Cmd/Ctrl+Enter`)
+
+Secrets are redacted. Writes and terminal always confirm. No signing / Live money from chat.
+
+### Placeholders
+
+- Wallets / Transactions views (MetaMask + portfolio later)
+- Status bar: provider/model · chain · wallet · mode · vault locked
+
+**Not yet:** vault, signing, swaps, bridges, Live execution.
 
 ## Acceptance checklist
 
