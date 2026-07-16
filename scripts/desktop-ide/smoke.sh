@@ -13,6 +13,9 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 [[ -f "$IDE/extensions/vane-workbench/src/agentLoop.ts" ]] || fail "agentLoop.ts missing"
 [[ -f "$IDE/extensions/vane-workbench/src/tools.ts" ]] || fail "tools.ts missing"
 [[ -f "$IDE/extensions/vane-workbench/src/modelGateway.ts" ]] || fail "modelGateway.ts missing"
+[[ -f "$IDE/extensions/vane-workbench/src/homeView.ts" ]] || fail "homeView.ts missing (Phase 3 Home)"
+[[ -f "$IDE/extensions/vane-workbench/src/projectIntel.ts" ]] || fail "projectIntel.ts missing"
+[[ -f "$IDE/extensions/vane-workbench/media/home.html" ]] || fail "media/home.html missing"
 [[ -f "$IDE/extensions/vane-workbench/tsconfig.json" ]] || fail "vane-workbench tsconfig missing"
 
 "$ROOT/scripts/desktop-ide/brand.sh"
@@ -31,8 +34,12 @@ const viewsContainers = ext.contributes?.viewsContainers?.activitybar || [];
 if (!viewsContainers.some((v) => v.id === "vane")) throw new Error("activity bar container missing");
 const agentView = (ext.contributes?.views?.vane || []).find((v) => v.id === "vane.agent");
 if (!agentView || agentView.type !== "webview") throw new Error("vane.agent must be a webview");
+const projectView = (ext.contributes?.views?.vane || []).find((v) => v.id === "vane.project");
+if (!projectView) throw new Error("vane.project overview missing");
+const defaults = ext.contributes?.configurationDefaults || {};
+if (defaults["workbench.startupEditor"] !== "none") throw new Error("startupEditor should be none for Home-first");
 const cmds = (ext.contributes?.commands || []).map((c) => c.command);
-for (const c of ["vane.openAgent", "vane.agent.setApiKey", "vane.openWallets", "vane.openTransactions"]) {
+for (const c of ["vane.openHome", "vane.openAgent", "vane.agent.setApiKey", "vane.openWallets", "vane.openTransactions"]) {
   if (!cmds.includes(c)) throw new Error("missing command " + c);
 }
 if (!ext.main) throw new Error("extension main entry missing");

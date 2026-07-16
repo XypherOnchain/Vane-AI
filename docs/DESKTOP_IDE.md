@@ -1,4 +1,4 @@
-# Vane Desktop IDE (Code—OSS)
+# Vane Desktop IDE (Code-OSS)
 
 Primary product surface per [ADR-001](./architecture/ADR-001-desktop-ide-primary.md).
 
@@ -12,64 +12,67 @@ Primary product surface per [ADR-001](./architecture/ADR-001-desktop-ide-primary
 
 ## Prerequisites
 
-- Node.js **≥ 20** (match upstream Code—OSS `.nvmrc` when present)
-- Yarn (upstream Classic / Berry per fork `package.json`)
+- Node.js **24** (match upstream Code-OSS `.nvmrc` when present; Homebrew `node@24` works)
+- npm inside `apps/desktop-ide` (avoid Yarn from the monorepo root)
 - Python 3 + build tools for native modules
 - `git-lfs` installed (`brew install git-lfs && git lfs install`)
-- Optional: `GIT_LFS_SKIP_SMUDGE=1` for faster shallow clones
 
 ## Quick start
 
 ```bash
+export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
+unset ELECTRON_RUN_AS_NODE
 ./scripts/desktop-ide/init.sh
 ./scripts/desktop-ide/brand.sh
-./scripts/desktop-ide/smoke.sh     # no GUI required
-./scripts/desktop-ide/dev.sh      # yarn watch / upstream electron
+./scripts/desktop-ide/smoke.sh
+cd apps/desktop-ide
+npx gulp compile-extension:vane-workbench
+./scripts/code.sh
 ```
 
-First `yarn`/`npm install` inside `apps/desktop-ide` is large and slow.
+Or open `apps/desktop-ide/.build/electron/Vane AI.app`.
 
-## Packaging (macOS / Windows / Linux)
+## Vane UI (Phase 3 — Home-first)
 
-Upstream Code—OSS uses gulp electron targets after compile. From `apps/desktop-ide` after dependencies install:
+### Home (default first screen)
 
-```bash
-./scripts/desktop-ide/brand.sh
-./scripts/desktop-ide/build.sh
-# then upstream packaging, e.g. yarn gulp vscode-darwin-arm64 | vscode-win32-x64 | vscode-linux-x64
-```
+On launch you should see **Vane Home**, not the VS Code welcome page:
 
-Exact gulp task names follow the fork’s `package.json` / gulpfile — see upstream wiki “How to Contribute”. Unsigned local builds are fine for internal testing.
+1. **Open project** or **New project**
+2. **Ask Agent** (plain English)
+3. **Wallets** / **Trade and launch** (clear "coming soon")
+4. **Learn the basics**
 
-## Vane UI
+Command Palette: **Vane: Open Home**
 
-### Agent (Phase 2 — Cursor-like)
+Stock VS Code Chat / secondary sidebar is demoted so **Vane Agent** is the AI surface.
 
-1. File → Open Folder  
-2. Command Palette → **Vane: Set Agent API Key**  
-3. Settings: `vane.agent.provider` (`openai`|`anthropic`), `vane.agent.model`  
-4. Activity bar → **Vane** → **Agent**  
-5. Chat to list/read/search/edit files and run approved terminal commands (`Cmd/Ctrl+Enter`)
+### Agent
 
-Secrets are redacted. Writes and terminal always confirm. No signing / Live money from chat.
+1. **Vane: Set Agent API Key**
+2. Settings: `vane.agent.provider` (`openai`|`anthropic`), `vane.agent.model`
+3. Rocket bar → **Agent**
+4. Chat (`Cmd/Ctrl+Enter`). Writes and terminal always confirm.
 
-### Placeholders
+### Project overview
 
-- Wallets / Transactions views (MetaMask + portfolio later)
-- Status bar: provider/model · chain · wallet · mode · vault locked
+Rocket bar → **Project**: detects Foundry / Hardhat / Solidity / Next-style folders, lists contracts/scripts, suggests next steps. Agent tool: `project_overview`.
 
-**Not yet:** vault, signing, swaps, bridges, Live execution.
+### Status bar (human labels)
+
+Provider/model · Agent · chain · **No wallet yet** · **Safe mode** · Vault locked
+
+**Not yet:** vault, signing, swaps, bridges, Live execution, public downloadable installer.
 
 ## Acceptance checklist
 
-- [ ] `./scripts/desktop-ide/init.sh` succeeds
 - [ ] `./scripts/desktop-ide/smoke.sh` passes
 - [ ] App launches titled **Vane AI**
-- [ ] Open a local folder
-- [ ] Edit a file; integrated terminal works; Git view works
-- [ ] Vane activity bar shows Agent / Wallets / Transactions
-- [ ] Status bar shows placeholder Vane state
-- [ ] Electron security defaults unchanged (no Node in renderer)
+- [ ] First screen is **Vane Home** (not VS Code Welcome)
+- [ ] Open or create a project without needing Explorer first
+- [ ] Agent + Project overview work; stock Chat is not required
+- [ ] Status bar shows Safe mode / No wallet yet style labels
+- [ ] No vault / signing in Agent
 
 ## Upstream merges
 

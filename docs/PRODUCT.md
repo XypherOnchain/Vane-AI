@@ -19,7 +19,7 @@ Vane is a **crypto-native AI IDE**, not a browser dashboard with a chat box and 
 
 ## Surfaces (priority order)
 
-1. **Desktop IDE** (primary) — branded Code—OSS at `apps/desktop-ide` (submodule). Editor, terminal, Git, agent/wallet/tx panels.
+1. **Desktop IDE** (primary) — branded Code—OSS at `apps/desktop-ide` (submodule). **Vane Home** is the first screen; Agent + Project overview for builders of all levels; editor/terminal/Git stay available when needed.
 2. **Web** (secondary) — marketing + Debug dogfood at `/debug/*`. Never holds private keys.
 3. **Legacy Electron shell** (`apps/desktop`) — temporary wrapper around the Next Debug UI until the IDE boots.
 4. **Telegram** — alerts and deep links only (never raw keys or chat-as-signature for meaningful value).
