@@ -7,19 +7,23 @@ import {
   nativeTheme,
 } from "electron";
 import path from "node:path";
+import { startLocalSidecar } from "./sidecar.js";
 
 /**
  * Vane Desktop — Electron shell (the “download like Cursor” surface).
  *
  * Dev: loads the Next.js Debug UI at APP_URL (default http://localhost:3000).
  * Deep links: vane://debug/tx/<hash>
+ * Local sidecar: 127.0.0.1:4010 for offline-ish workspace helpers.
  */
 
 const APP_URL = process.env.VANE_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
+const API_URL = process.env.VANE_API_URL ?? process.env.API_URL ?? "http://localhost:4000";
 const isDev = !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
 let pendingDeepLink: string | null = null;
+let sidecarClose: (() => void) | null = null;
 
 function resolveDeepLink(url: string): string {
   try {
@@ -144,6 +148,9 @@ if (process.defaultApp) {
 }
 
 app.whenReady().then(() => {
+  const sidecar = startLocalSidecar({ apiUrl: API_URL });
+  sidecarClose = sidecar.close;
+
   buildMenu();
   const fromArgv = process.argv.find((a) => a.startsWith("vane://"));
   const start = pendingDeepLink ?? (fromArgv ? resolveDeepLink(fromArgv) : "/debug");
@@ -151,9 +158,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle("vane:get-env", () => ({
     appUrl: APP_URL,
+    apiUrl: API_URL,
+    sidecarUrl: `http://127.0.0.1:${sidecar.port}`,
     isDev,
     platform: process.platform,
     version: app.getVersion(),
+    liveEnabled: false,
+    modes: ["simulation", "testnet", "live"] as const,
   }));
 
   ipcMain.handle("vane:open-external", (_e, url: string) => {
@@ -166,9 +177,13 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow("/debug");
   });
 
-  console.log(`[vane-desktop] ready · appUrl=${APP_URL} · packaged=${app.isPackaged}`);
+  console.log(
+    `[vane-desktop] ready · appUrl=${APP_URL} · sidecar=${sidecar.port} · packaged=${app.isPackaged}`,
+  );
+  console.log(`[vane-desktop] dist: pnpm desktop:dist → apps/desktop/release (unsigned .dmg for internal testing)`);
 });
 
 app.on("window-all-closed", () => {
+  sidecarClose?.();
   if (process.platform !== "darwin") app.quit();
 });

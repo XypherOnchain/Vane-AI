@@ -3,14 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { ModeBanner } from "./ModeBanner";
 
-/** Phase 1 product nav — Debug only (no radar / pairs / watchlists). */
+/** Product nav — Debug first; later pillars appear as routes ship. */
 const nav = [
   { href: "/debug", label: "Workspace", exact: true },
   { href: "/debug/chat", label: "AI Chat" },
   { href: "/debug/tx", label: "Tx Inspector" },
   { href: "/debug/repair", label: "Repair" },
   { href: "/debug/memory", label: "Memory" },
+  { href: "/build", label: "Build" },
+  { href: "/flow", label: "Flow" },
+  { href: "/operate", label: "Operate" },
+  { href: "/agent", label: "Agent" },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -121,6 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             chain 4663
           </span>
         </header>
+        <ModeBanner />
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[var(--color-line)] bg-[rgba(7,9,12,0.92)] backdrop-blur-xl md:hidden">
           {nav.map((i) => (

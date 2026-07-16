@@ -4,6 +4,8 @@
 
 **Lead message:** Debug transactions, understand contracts, build integrations and safely operate on-chain workflows from one AI workspace — downloadable to your computer, with Telegram as a remote control.
 
+**Implementation checklist:** [`BUILD_PLAN.md`](./BUILD_PLAN.md) — work phases in order; finish Phase 1 before Phase 2.
+
 ## Positioning
 
 Vane is a **crypto-native AI development and operations environment**, not a generic trading assistant.

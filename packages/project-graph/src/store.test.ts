@@ -6,6 +6,7 @@ describe("ProjectGraphStore", () => {
     const store = new ProjectGraphStore();
     const p = store.createProject({ name: "Treasury Automation" });
     expect(p.chains).toEqual([4663]);
+    expect(p.chainConfigs.some((c) => c.chainId === 4663)).toBe(true);
     expect(store.listProjects()).toHaveLength(1);
     expect(store.listAudits(p.id)[0]?.kind).toBe("project.created");
   });

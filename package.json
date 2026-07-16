@@ -12,6 +12,7 @@
     "dev:web": "turbo run dev --filter=@vane/web --filter=@vane/api",
     "desktop": "pnpm --filter @vane/desktop dev",
     "desktop:dist": "pnpm --filter @vane/desktop dist",
+    "telegram:debug": "pnpm --filter @vane/telegram-debug dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

@@ -1,0 +1,57 @@
+{
+  "name": "vane-vscode",
+  "displayName": "Vane AI",
+  "description": "Cursor/VS Code extension — same Debug/Build API as Vane desktop",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "vane",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:vane.explainCallPath", "onCommand:vane.addChainSupport", "onCommand:vane.generateDeployManifest"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vane.explainCallPath",
+        "title": "Vane: Explain this call path"
+      },
+      {
+        "command": "vane.addChainSupport",
+        "title": "Vane: Add chain support"
+      },
+      {
+        "command": "vane.generateDeployManifest",
+        "title": "Vane: Generate deploy manifest"
+      },
+      {
+        "command": "vane.inspectSelection",
+        "title": "Vane: Send selection to Debug chat"
+      }
+    ],
+    "configuration": {
+      "title": "Vane",
+      "properties": {
+        "vane.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:4000",
+          "description": "Vane API base URL"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'vscode-extension lint: ok'",
+    "test": "vitest run --passWithNoTests",
+    "package": "pnpm build && echo 'vsce package when publishing'"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

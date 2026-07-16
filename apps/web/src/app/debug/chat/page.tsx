@@ -3,54 +3,57 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { apiPost, apiGetSlow } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
+
+interface ChatAnswer {
+  answer: string;
+  citations?: { label: string; href?: string; kind?: string }[];
+  toolsUsed?: string[];
+  suggestedFollowUps?: string[];
+  redacted?: boolean;
+}
 
 function ChatInner() {
   const searchParams = useSearchParams();
   const [input, setInput] = useState("");
-  const [log, setLog] = useState<{ role: "user" | "vane"; text: string }[]>([]);
+  const [projectId, setProjectId] = useState("");
+  const [log, setLog] = useState<
+    { role: "user" | "vane"; text: string; citations?: ChatAnswer["citations"]; tools?: string[] }[]
+  >([]);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState(false);
+
+  useEffect(() => {
+    void apiGet<{ items: { id: string }[] }>("/v1/debug/projects")
+      .then((d) => {
+        if (d.items[0]) setProjectId(d.items[0].id);
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function ask(q: string) {
     if (!q.trim()) return;
     setLog((l) => [...l, { role: "user", text: q }]);
     setBusy(true);
     try {
-      const txMatch = q.match(/0x[a-fA-F0-9]{64}/);
-      if (txMatch) {
-        const inspection = await apiGetSlow<{
-          summary: string;
-          status: string;
-          revertReason: string | null;
-          hash: string;
-        }>(`/v1/debug/tx/${txMatch[0]}`);
-        setLog((l) => [
-          ...l,
-          {
-            role: "vane",
-            text: `[${inspection.status}] ${inspection.summary}${
-              inspection.revertReason ? `\nRevert: ${inspection.revertReason}` : ""
-            }\n\n→ Open full inspector for ${inspection.hash.slice(0, 10)}…`,
-          },
-        ]);
-      } else {
-        const answer = await apiPost<{ answer: string; suggestedFollowUps?: string[] }>(
-          "/v1/ai/query",
-          { question: q },
-        );
-        setLog((l) => [
-          ...l,
-          {
-            role: "vane",
-            text:
-              answer.answer +
-              (answer.suggestedFollowUps?.length
-                ? `\n\nFollow-ups: ${answer.suggestedFollowUps.join(" · ")}`
-                : ""),
-          },
-        ]);
-      }
+      const answer = await apiPost<ChatAnswer>("/v1/debug/chat", {
+        question: q,
+        projectId: projectId || undefined,
+      });
+      setLog((l) => [
+        ...l,
+        {
+          role: "vane",
+          text:
+            answer.answer +
+            (answer.redacted ? "\n\n_(secrets redacted)_" : "") +
+            (answer.suggestedFollowUps?.length
+              ? `\n\nFollow-ups: ${answer.suggestedFollowUps.join(" · ")}`
+              : ""),
+          citations: answer.citations,
+          tools: answer.toolsUsed,
+        },
+      ]);
     } catch (e) {
       setLog((l) => [
         ...l,
@@ -72,15 +75,25 @@ function ChatInner() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col px-4 py-8 md:px-8">
+      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--color-accent)]">
+        Screen 2 · Tool chat
+      </p>
       <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">AI chat</h2>
       <p className="mt-1 text-sm text-[var(--color-muted)]">
-        Paste a transaction hash for RPC inspection, or ask a project question. Private keys never
-        enter prompts.
+        Tools: inspect_tx, get_project, search_repo, list_incidents, propose_repair. Answers cite tx
+        hashes, files, and incident ids.
       </p>
-      <div className="mt-6 min-h-[320px] flex-1 space-y-3 rounded-xl border border-[var(--color-line)] p-4">
+      <input
+        value={projectId}
+        onChange={(e) => setProjectId(e.target.value)}
+        placeholder="project id"
+        className="mt-4 w-full max-w-md rounded-lg border border-[var(--color-line)] bg-black/30 px-3 py-2 font-mono text-xs"
+      />
+      <div className="mt-4 min-h-[320px] flex-1 space-y-3 rounded-xl border border-[var(--color-line)] p-4">
         {log.length === 0 && (
           <p className="text-sm text-[var(--color-muted)]">
-            Try: “Why did 0x… fail?” or “What should I check before bridging to treasury?”
+            Try: “Why did 0x… fail?” · “What is in this project?” · “List incidents” · “Propose a
+            repair for 0x…”
           </p>
         )}
         {log.map((m, i) => (
@@ -93,7 +106,27 @@ function ChatInner() {
             }`}
           >
             <span className="text-[10px] uppercase text-[var(--color-muted)]">{m.role}</span>
+            {m.tools?.length ? (
+              <span className="ml-2 font-mono text-[10px] text-[var(--color-accent)]">
+                {m.tools.join(", ")}
+              </span>
+            ) : null}
             <div className="mt-1">{m.text}</div>
+            {m.citations && m.citations.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs text-[var(--color-muted)]">
+                {m.citations.map((c, j) => (
+                  <li key={j}>
+                    {c.href ? (
+                      <Link href={c.href.replace(/^https?:\/\/[^/]+/, "")} className="text-[var(--color-accent)]">
+                        {c.label}
+                      </Link>
+                    ) : (
+                      c.label
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ))}
       </div>
@@ -124,9 +157,6 @@ function ChatInner() {
           Send
         </button>
       </div>
-      <Link href="/debug/tx" className="mt-4 text-sm text-[var(--color-accent)]">
-        Prefer the full Tx Inspector →
-      </Link>
     </div>
   );
 }

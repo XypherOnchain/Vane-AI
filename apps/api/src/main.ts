@@ -3,18 +3,22 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { loadEnv } from "@vane/config";
 import { createRobinhoodProvider } from "@vane/chain";
-import { maybePolishWithLlm, runAgent } from "./services/agent.js";
+import { maybePolishWithLlm } from "./services/agent.js";
 import { dbHealthy } from "./services/db.js";
 import { getRedis } from "./services/cache.js";
 import { debugRouter } from "./routes/debug.js";
+import { buildRouter } from "./routes/build.js";
+import { flowRouter } from "./routes/flow.js";
+import { operateRouter } from "./routes/operate.js";
+import { agentJobsRouter } from "./routes/agent.js";
+import { runDebugAgent } from "./services/debug-agent.js";
+import { getProjectStore } from "./services/project-store.js";
 import {
   createAlert,
   createReport,
   demoMode,
   evaluateAlerts,
   getReport,
-  getToken,
-  getWallet,
   listAlerts,
   metricsSnapshot,
 } from "./services/store.js";
@@ -192,6 +196,10 @@ app.get("/v1/search", (req, res) => {
 });
 
 app.use("/v1/debug", debugRouter());
+app.use("/v1/build", buildRouter());
+app.use("/v1/flow", flowRouter());
+app.use("/v1/operate", operateRouter());
+app.use("/v1/agent-jobs", agentJobsRouter());
 
 app.post("/v1/ai/query", aiQuery);
 app.post("/v1/agent", aiQuery);
@@ -199,13 +207,27 @@ app.post("/v1/agent", aiQuery);
 async function aiQuery(req: express.Request, res: express.Response) {
   const question = String(req.body?.question ?? "");
   if (!question.trim()) return res.status(400).json({ error: "question required" });
-  let answer = runAgent(
-    question,
-    { getToken, getWallet, webUrl: env.APP_URL },
-    req.body?.tokenAddress,
+  const store = await getProjectStore();
+  let answer = await runDebugAgent(question, {
+    store,
+    projectId: req.body?.projectId ? String(req.body.projectId) : undefined,
+    webUrl: env.APP_URL,
+  });
+  // Optional LLM polish — never reintroduce secrets
+  const polished = await maybePolishWithLlm(
+    {
+      answer: answer.answer,
+      citations: answer.citations.map((c) => ({
+        label: c.label,
+        href: c.href ?? `${env.APP_URL}/debug`,
+      })),
+      toolsUsed: answer.toolsUsed,
+      suggestedFollowUps: answer.suggestedFollowUps,
+    },
+    env.AI_PROVIDER_API_KEY,
+    env.AI_MODEL,
   );
-  answer = await maybePolishWithLlm(answer, env.AI_PROVIDER_API_KEY, env.AI_MODEL);
-  res.json({ ...answer, demoMode });
+  res.json({ ...polished, toolsUsed: answer.toolsUsed, redacted: answer.redacted, demoMode });
 }
 
 app.post("/v1/reports", (req, res) => {
