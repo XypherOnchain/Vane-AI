@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { apiPost, apiGetSlow } from "@/lib/api";
 
-export default function DebugChatPage() {
+function ChatInner() {
+  const searchParams = useSearchParams();
   const [input, setInput] = useState("");
   const [log, setLog] = useState<{ role: "user" | "vane"; text: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  const [seeded, setSeeded] = useState(false);
 
-  async function send() {
-    const q = input.trim();
-    if (!q) return;
-    setInput("");
+  async function ask(q: string) {
+    if (!q.trim()) return;
     setLog((l) => [...l, { role: "user", text: q }]);
     setBusy(true);
     try {
@@ -30,7 +31,7 @@ export default function DebugChatPage() {
             role: "vane",
             text: `[${inspection.status}] ${inspection.summary}${
               inspection.revertReason ? `\nRevert: ${inspection.revertReason}` : ""
-            }\n\nOpen inspector: /debug/tx (hash prefilled via Inspect)`,
+            }\n\n→ Open full inspector for ${inspection.hash.slice(0, 10)}…`,
           },
         ]);
       } else {
@@ -60,17 +61,26 @@ export default function DebugChatPage() {
     }
   }
 
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !seeded) {
+      setSeeded(true);
+      setInput("");
+      void ask(q);
+    }
+  }, [searchParams, seeded]);
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col px-4 py-8 md:px-8">
       <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">AI chat</h2>
       <p className="mt-1 text-sm text-[var(--color-muted)]">
-        Paste a transaction hash for RPC inspection, or ask a project question. Keys are never sent
-        to the model.
+        Paste a transaction hash for RPC inspection, or ask a project question. Private keys never
+        enter prompts.
       </p>
       <div className="mt-6 min-h-[320px] flex-1 space-y-3 rounded-xl border border-[var(--color-line)] p-4">
         {log.length === 0 && (
           <p className="text-sm text-[var(--color-muted)]">
-            Try: “Why did 0x… fail?” or “What wallets are in my treasury project?”
+            Try: “Why did 0x… fail?” or “What should I check before bridging to treasury?”
           </p>
         )}
         {log.map((m, i) => (
@@ -91,14 +101,24 @@ export default function DebugChatPage() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void send()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const q = input.trim();
+              setInput("");
+              void ask(q);
+            }
+          }}
           placeholder="Ask Vane or paste a tx hash…"
           className="flex-1 rounded-lg border border-[var(--color-line)] bg-black/30 px-3 py-2.5 text-sm"
         />
         <button
           type="button"
           disabled={busy}
-          onClick={() => void send()}
+          onClick={() => {
+            const q = input.trim();
+            setInput("");
+            void ask(q);
+          }}
           className="rounded-full bg-[var(--color-accent)] px-5 py-2 text-sm font-semibold text-[#04140d] disabled:opacity-50"
         >
           Send
@@ -108,5 +128,13 @@ export default function DebugChatPage() {
         Prefer the full Tx Inspector →
       </Link>
     </div>
+  );
+}
+
+export default function DebugChatPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-[var(--color-muted)]">Loading chat…</div>}>
+      <ChatInner />
+    </Suspense>
   );
 }

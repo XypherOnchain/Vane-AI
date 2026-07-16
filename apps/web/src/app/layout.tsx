@@ -22,9 +22,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vane — Crypto-native AI workspace",
+  title: "Vane — Cursor for crypto",
   description:
-    "Debug transactions, understand contracts, build integrations and safely operate on-chain workflows — Cursor for crypto.",
+    "Downloadable AI workspace to debug transactions, understand contracts, and safely operate on-chain workflows.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

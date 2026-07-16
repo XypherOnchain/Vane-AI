@@ -7,16 +7,13 @@ import {
   nativeTheme,
 } from "electron";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 /**
  * Vane Desktop — Electron shell (the “download like Cursor” surface).
  *
  * Dev: loads the Next.js Debug UI at APP_URL (default http://localhost:3000).
- * Prod: same, or a bundled static export later. Deep links: vane://debug/tx/<hash>
+ * Deep links: vane://debug/tx/<hash>
  */
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const APP_URL = process.env.VANE_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
 const isDev = !app.isPackaged;
@@ -25,7 +22,6 @@ let mainWindow: BrowserWindow | null = null;
 let pendingDeepLink: string | null = null;
 
 function resolveDeepLink(url: string): string {
-  // vane://debug/tx/0xabc → http://localhost:3000/debug/tx/0xabc
   try {
     const u = new URL(url);
     if (u.protocol !== "vane:") return `${APP_URL}/debug`;
@@ -70,21 +66,19 @@ function createWindow(initialPath = "/debug") {
 
 function buildMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
-    ...(process.platform === "darwin"
-      ? [{ role: "appMenu" as const }]
-      : []),
+    ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
     {
       label: "File",
       submenu: [
         {
           label: "Open Debug Workspace",
           accelerator: "CmdOrCtrl+1",
-          click: () => mainWindow?.loadURL(`${APP_URL}/debug`),
+          click: () => void mainWindow?.loadURL(`${APP_URL}/debug`),
         },
         {
           label: "Open Tx Inspector",
           accelerator: "CmdOrCtrl+2",
-          click: () => mainWindow?.loadURL(`${APP_URL}/debug/tx`),
+          click: () => void mainWindow?.loadURL(`${APP_URL}/debug/tx`),
         },
         { type: "separator" },
         process.platform === "darwin" ? { role: "close" } : { role: "quit" },
@@ -96,17 +90,18 @@ function buildMenu() {
       label: "Vane",
       submenu: [
         {
-          label: "Radar (chain intel)",
-          click: () => mainWindow?.loadURL(`${APP_URL}/radar`),
+          label: "AI Chat",
+          accelerator: "CmdOrCtrl+3",
+          click: () => void mainWindow?.loadURL(`${APP_URL}/debug/chat`),
         },
         {
           label: "Project Memory",
-          click: () => mainWindow?.loadURL(`${APP_URL}/debug/memory`),
+          accelerator: "CmdOrCtrl+4",
+          click: () => void mainWindow?.loadURL(`${APP_URL}/debug/memory`),
         },
-        { type: "separator" },
         {
-          label: "Docs — Product Framework",
-          click: () => shell.openExternal("https://github.com/XypherOnchain/Vane-AI/blob/main/docs/PRODUCT.md"),
+          label: "Repair",
+          click: () => void mainWindow?.loadURL(`${APP_URL}/debug/repair`),
         },
       ],
     },
@@ -114,7 +109,6 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-// Single instance + deep links (Windows/Linux)
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
@@ -134,7 +128,6 @@ if (!gotLock) {
   });
 }
 
-// macOS deep links
 app.on("open-url", (event, url) => {
   event.preventDefault();
   const resolved = resolveDeepLink(url);
@@ -172,10 +165,10 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow("/debug");
   });
+
+  console.log(`[vane-desktop] ready · appUrl=${APP_URL} · packaged=${app.isPackaged}`);
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
-
-console.log(`[vane-desktop] ready · appUrl=${APP_URL} · packaged=${app.isPackaged}`);

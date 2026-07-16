@@ -6,32 +6,19 @@ import { createRobinhoodProvider } from "@vane/chain";
 import { maybePolishWithLlm, runAgent } from "./services/agent.js";
 import { dbHealthy } from "./services/db.js";
 import { getRedis } from "./services/cache.js";
-import {
-  getIndexedGraph,
-  getIndexedTokenOverview,
-  getIndexedWallet,
-  listIndexedRadar,
-  searchIndexed,
-} from "./services/indexed.js";
-import { fetchOhlcv, fetchTrades } from "./services/market.js";
 import { debugRouter } from "./routes/debug.js";
 import {
   createAlert,
   createReport,
   demoMode,
   evaluateAlerts,
-  getGraph,
   getReport,
   getToken,
-  getTokenCached,
   getWallet,
   listAlerts,
-  listNewPairs,
-  listRadar,
-  listTrending,
   metricsSnapshot,
-  search,
 } from "./services/store.js";
+import { isLikelyTx } from "@vane/shared-types";
 
 const env = loadEnv();
 const app = express();
@@ -166,119 +153,44 @@ app.get("/metrics", (_req, res) => {
     );
 });
 
-// --- Data endpoints ---------------------------------------------------------
-// When demo mode is off (the default) and real indexing has not yet populated
-// the database, these endpoints honestly report "not_indexed" instead of
-// substituting simulated findings.
-const NOT_INDEXED = {
-  status: "not_indexed" as const,
-  message: "This data is not indexed yet. Vane never substitutes simulated findings.",
+// --- Product API (Phase 1 = Vane Debug only) ---------------------------------
+// Radar / new-pairs / trending / token intel were removed from the public
+// product surface. Indexer services may still exist in-repo for later phases.
+
+const GONE = {
+  status: "gone" as const,
+  message:
+    "This endpoint was retired. Vane Phase 1 is Debug — use /v1/debug/* (workspace, tx inspector, incidents).",
 };
 
-app.get("/v1/search", async (req, res) => {
-  const q = String(req.query.q ?? "");
-  if (demoMode) return res.json({ results: search(q), demoMode });
-  res.json({ results: await searchIndexed(q), demoMode: false });
-});
-
-app.get("/v1/radar", async (_req, res) => {
-  if (demoMode) return res.json({ items: listRadar(), demoMode });
-  const items = await listIndexedRadar();
-  if (!items || items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
-  res.json({ items, demoMode: false });
-});
-
-app.get("/v1/new-pairs", async (_req, res) => {
-  if (demoMode) return res.json({ items: listNewPairs(), demoMode });
-  const items = await listIndexedRadar();
-  if (!items || items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
-  res.json({ items: items.filter((t) => t.ageMinutes < 24 * 60), demoMode: false });
-});
-
-app.get("/v1/trending", async (_req, res) => {
-  if (demoMode) return res.json({ items: listTrending(), demoMode });
-  // Trending requires real volume metrics, which are not computed yet.
-  // Until pricing lands, trending honestly reports the same new-launch feed.
-  const items = await listIndexedRadar();
-  if (!items || items.length === 0) return res.json({ items: [], ...NOT_INDEXED });
-  res.json({ items, demoMode: false, note: "volume ranking pending market-data pipeline" });
-});
-
-async function tokenOr404(req: express.Request, res: express.Response) {
-  const address = req.params.address as string;
-  const token = demoMode
-    ? await getTokenCached(address)
-    : await getIndexedTokenOverview(address);
-  if (!token) {
-    res.status(404).json({ error: "Token not indexed", ...NOT_INDEXED });
-    return null;
-  }
-  return token;
+function retired(_req: express.Request, res: express.Response) {
+  res.status(410).json(GONE);
 }
 
-app.get("/v1/tokens/:address", async (req, res) => {
-  const token = await tokenOr404(req, res);
-  if (token) res.json(token);
+app.get("/v1/radar", retired);
+app.get("/v1/new-pairs", retired);
+app.get("/v1/trending", retired);
+app.get(/^\/v1\/tokens(\/|$)/, retired);
+app.get(/^\/v1\/wallets(\/|$)/, retired);
+
+/** Debug search: tx hash → deep link hint; otherwise empty (use AI chat). */
+app.get("/v1/search", (req, res) => {
+  const q = String(req.query.q ?? "").trim();
+  if (isLikelyTx(q)) {
+    return res.json({
+      results: [
+        {
+          type: "tx",
+          id: q.toLowerCase(),
+          title: "Inspect transaction",
+          subtitle: `/v1/debug/tx/${q.toLowerCase()}`,
+        },
+      ],
+    });
+  }
+  res.json({ results: [] });
 });
 
-app.get("/v1/tokens/:address/overview", async (req, res) => {
-  const token = await tokenOr404(req, res);
-  if (token) res.json(token);
-});
-
-app.get("/v1/tokens/:address/graph", async (req, res) => {
-  const graph = demoMode
-    ? getGraph(req.params.address)
-    : await getIndexedGraph(req.params.address);
-  if (!graph) return res.status(404).json({ error: "Graph not available", ...NOT_INDEXED });
-  res.json(graph);
-});
-
-// Live market endpoints (GeckoTerminal `robinhood` network — real pools/trades).
-app.get("/v1/tokens/:address/candles", async (req, res) => {
-  const candles = await fetchOhlcv(
-    req.params.address,
-    String(req.query.tf ?? "1h"),
-    Number(req.query.limit ?? 300),
-  );
-  res.json({ candles, source: "geckoterminal" });
-});
-
-app.get("/v1/tokens/:address/trades", async (req, res) => {
-  const trades = await fetchTrades(req.params.address, Number(req.query.limit ?? 30));
-  res.json({ trades, source: "geckoterminal" });
-});
-
-app.get("/v1/tokens/:address/scores", async (req, res) => {
-  const token = await tokenOr404(req, res);
-  if (!token) return;
-  res.json({
-    dataSource: token.dataSource,
-    integrity: token.integrity,
-    momentum: token.momentum,
-    dataConfidence: token.dataConfidence,
-  });
-});
-
-app.get("/v1/tokens/:address/contract", async (req, res) => {
-  const token = await tokenOr404(req, res);
-  if (token) res.json({ dataSource: token.dataSource, findings: token.findings });
-});
-
-app.get("/v1/tokens/:address/clusters", async (req, res) => {
-  const token = await tokenOr404(req, res);
-  if (token) res.json({ dataSource: token.dataSource, cluster: token.cluster });
-});
-
-app.get("/v1/wallets/:address", async (req, res) => {
-  const wallet = demoMode
-    ? getWallet(req.params.address)
-    : await getIndexedWallet(req.params.address);
-  if (!wallet) return res.status(404).json({ error: "Wallet not indexed", ...NOT_INDEXED });
-  res.json(wallet);
-});
-
-// Phase 1 — Vane Debug (workspace, tx inspector, incidents, Telegram alert payloads)
 app.use("/v1/debug", debugRouter());
 
 app.post("/v1/ai/query", aiQuery);
@@ -298,7 +210,7 @@ async function aiQuery(req: express.Request, res: express.Response) {
 
 app.post("/v1/reports", (req, res) => {
   const report = createReport(String(req.body?.tokenAddress ?? ""));
-  if (!report) return res.status(404).json({ error: "Token not indexed", ...NOT_INDEXED });
+  if (!report) return res.status(410).json(GONE);
   res.status(201).json({ ...report, url: `${env.APP_URL}/r/${report.id}` });
 });
 

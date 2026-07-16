@@ -1,10 +1,5 @@
-import Placeholder from "@/components/Placeholder";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <Placeholder
-      title="Watchlists"
-      body="Token, wallet, developer, and cluster watchlists unlock after account auth. Foundation routes are ready."
-    />
-  );
+export default function WatchlistsRedirect() {
+  redirect("/debug");
 }

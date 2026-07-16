@@ -3,17 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { GlobalSearch } from "./GlobalSearch";
 
+/** Phase 1 product nav — Debug only (no radar / pairs / watchlists). */
 const nav = [
-  { href: "/debug", label: "Debug" },
-  { href: "/radar", label: "Radar" },
-  { href: "/new-pairs", label: "New Pairs" },
-  { href: "/trending", label: "Trending" },
-  { href: "/app/watchlists", label: "Watchlists" },
-  { href: "/app/alerts", label: "Alerts" },
-  { href: "/ask", label: "Ask Vane" },
+  { href: "/debug", label: "Workspace", exact: true },
+  { href: "/debug/chat", label: "AI Chat" },
+  { href: "/debug/tx", label: "Tx Inspector" },
+  { href: "/debug/repair", label: "Repair" },
+  { href: "/debug/memory", label: "Memory" },
 ];
+
+function isActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(href + "/");
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -29,29 +32,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="font-[family-name:var(--font-display)] text-xl font-extrabold tracking-tight">
                 Vane
               </span>
-              <span className="text-xs text-[var(--color-muted)]">Crypto workspace</span>
+              <span className="text-xs text-[var(--color-muted)]">for crypto</span>
             </Link>
             <nav className="flex items-center gap-4 text-sm">
               <Link
                 href="/debug"
-                className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
-              >
-                Debug
-              </Link>
-              <Link
-                href="/radar"
-                className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
-              >
-                Radar
-              </Link>
-              <Link href="/ask" className="text-[var(--color-muted)] hover:text-[var(--color-fg)]">
-                Ask Vane
-              </Link>
-              <Link
-                href="/debug"
                 className="rounded-full bg-[var(--color-accent)] px-4 py-2 font-semibold text-[#04140d]"
               >
-                Open Debug
+                Open workspace
               </Link>
             </nav>
           </div>
@@ -71,7 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex h-16 items-center justify-between px-4">
           {!collapsed && (
             <Link
-              href="/"
+              href="/debug"
               className="font-[family-name:var(--font-display)] text-lg font-extrabold"
             >
               Vane
@@ -86,9 +74,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {collapsed ? "»" : "«"}
           </button>
         </div>
+        <p
+          className={`px-4 pb-2 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-muted)] ${
+            collapsed ? "hidden" : ""
+          }`}
+        >
+          Debug · Phase 1
+        </p>
         <nav className="flex flex-1 flex-col gap-1 px-2 py-2">
           {nav.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const active = isActive(pathname, item.href, item.exact);
             return (
               <Link
                 key={item.href}
@@ -105,37 +100,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        <div className="border-t border-[var(--color-line)] p-3">
+          <span className="flex items-center gap-1.5 rounded-full border border-[var(--color-warn)]/40 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[var(--color-warn)]">
+            Simulation mode
+          </span>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-[var(--color-line)] bg-[rgba(7,9,12,0.8)] px-4 backdrop-blur-xl">
-          <div className="min-w-0 flex-1">
-            <GlobalSearch />
-          </div>
-          <div className="hidden items-center gap-2 sm:flex">
-            <span className="rounded-full border border-[var(--color-line)] px-2.5 py-1 font-mono text-[11px] text-[var(--color-muted)]">
-              RH · 4663
-            </span>
-            <span className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-2.5 py-1 text-[11px] text-[var(--color-accent)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-              Live
-            </span>
-          </div>
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-[var(--color-line)] bg-[rgba(7,9,12,0.8)] px-4 backdrop-blur-xl">
+          <p className="text-sm text-[var(--color-muted)] md:hidden">
+            <Link href="/debug" className="font-[family-name:var(--font-display)] font-bold text-[var(--color-fg)]">
+              Vane
+            </Link>
+          </p>
+          <p className="hidden text-sm text-[var(--color-muted)] md:block">
+            Paste a tx · connect a repo · simulate before live
+          </p>
+          <span className="rounded-full border border-[var(--color-line)] px-2.5 py-1 font-mono text-[11px] text-[var(--color-muted)]">
+            chain 4663
+          </span>
         </header>
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[var(--color-line)] bg-[rgba(7,9,12,0.92)] backdrop-blur-xl md:hidden">
-          {[
-            { href: "/debug", label: "Debug" },
-            { href: "/radar", label: "Radar" },
-            { href: "/ask", label: "Ask" },
-            { href: "/app/alerts", label: "Alerts" },
-          ].map((i) => (
+          {nav.map((i) => (
             <Link
               key={i.href}
               href={i.href}
-              className="flex-1 py-3 text-center text-xs text-[var(--color-muted)]"
+              className={`flex-1 py-3 text-center text-[10px] ${
+                isActive(pathname, i.href, i.exact)
+                  ? "text-[var(--color-accent)]"
+                  : "text-[var(--color-muted)]"
+              }`}
             >
-              {i.label}
+              {i.label.split(" ")[0]}
             </Link>
           ))}
         </nav>

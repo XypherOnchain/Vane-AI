@@ -1,84 +1,51 @@
 # Vane AI
 
-**Crypto-native AI workspace — Cursor for on-chain.**
+**Cursor for crypto** — a downloadable AI workspace to debug transactions, understand contracts, and safely operate on-chain workflows.
 
-> Debug transactions, understand contracts, build integrations and safely operate on-chain workflows from one AI environment — downloadable to your computer, with Telegram as a remote control.
-
-Repo: [XypherOnchain/Vane-AI](https://github.com/XypherOnchain/Vane-AI)
-
+Repo: [XypherOnchain/Vane-AI](https://github.com/XypherOnchain/Vane-AI)  
 Product framework: [`docs/PRODUCT.md`](./docs/PRODUCT.md)
 
-## What we're building
+## Phase 1 product (what ships)
 
-| Surface | Role |
-|---------|------|
-| **Desktop app** (`apps/desktop`) | Downloadable Electron app (like Cursor) |
-| **Web** (`apps/web`) | Same Debug UI in the browser |
-| **API + indexer** | Chain intel, tx inspection, project memory |
-| **Telegram** | Alerts + deep links (`vane://…`) — never private keys |
+| Screen | Path | Purpose |
+|--------|------|---------|
+| Workspace | `/debug` | Project, repo path, watch-only wallets, Telegram |
+| AI Chat | `/debug/chat` | Paste a tx or ask a question |
+| Tx Inspector | `/debug/tx` | Receipt, logs, revert, risks from RPC |
+| Repair | `/debug/repair` | Patch + test + simulation gate (no live broadcast) |
+| Memory | `/debug/memory` | Incidents + audit log |
 
-### Phase 1 — Vane Debug (shipping now)
-
-1. **Workspace** — project, repo path, watch-only wallets, Telegram chat  
-2. **AI chat** — paste a tx hash or ask a question  
-3. **Tx Inspector** — receipt, logs, revert, risks from real RPC  
-4. **Repair** — proposed patch + test sketch + simulation gate  
-5. **Project memory** — incidents + audit log  
-
-Later: Build (IDE/extension) → Flow (workflows) → Operate → Agent (policy-constrained).
+Radar / new-pairs / trending / watchlists were **removed** from the product. Those URLs redirect to Debug. Matching API routes return `410 Gone`.
 
 ## Quick start
 
 ```bash
 cp .env.example .env
 pnpm install
-pnpm db:up              # optional Postgres + Redis
 pnpm dev:web            # API :4000 + Next.js :3000
-```
-
-Open Debug in the browser: [http://localhost:3000/debug](http://localhost:3000/debug)
-
-### Desktop (the Cursor-like install)
-
-With web+API already running:
-
-```bash
 pnpm desktop            # Electron window → Debug workspace
 ```
 
-Build installers (`.dmg` / `.exe` / AppImage):
+- Web: http://localhost:3000/debug  
+- Desktop: `pnpm desktop` (loads Debug; deep links `vane://debug/tx/<hash>`)  
+- Installers: `pnpm desktop:dist` → `apps/desktop/release/`
 
-```bash
-pnpm desktop:dist       # → apps/desktop/release/
-```
+## API surface (Phase 1)
 
-Deep links from Telegram: `vane://debug/tx/<hash>`
+| Route | Role |
+|-------|------|
+| `/v1/debug/*` | Projects, wallets, contracts, tx inspect, incidents, Telegram alert payloads |
+| `/v1/ai/query` | Chat (no private keys) |
+| `/health/*` | Liveness / readiness |
+| `/v1/radar`, `/v1/tokens/*`, … | **Retired** (`410`) |
 
-## Truthfulness rules
+## Safety defaults
 
-- `VANE_DEMO_MODE` defaults to **false**. Demo payloads are always labeled.
-- When data isn't indexed, APIs return `not_indexed` — never invented findings.
-- Debug defaults to **simulation mode**; live broadcast is not available in Phase 1.
+- Simulation mode by default  
+- Watch-only wallets  
+- No live broadcast in Phase 1  
+- Structured audit events for debug actions  
 
-## Architecture
+## Later phases
 
-```text
-apps/
-├── desktop                 # Electron shell (downloadable)
-├── web                     # Next.js — Debug + Radar intel
-├── api                     # REST + /v1/debug/*
-├── indexer                 # Robinhood Chain ingestion
-├── telegram-*              # bots (stubs → Phase 1 alerts)
-└── worker, admin
-
-packages/
-├── project-graph           # workspace + incidents + audit (Pillar E)
-├── chain, dex-adapters, launchpad-adapters
-├── shared-types, config, telegram, …
-```
-
-## Validation
-
-```bash
-pnpm lint && pnpm typecheck && pnpm test && pnpm build
-```
+Build (IDE/extension) → Flow (workflows) → Operate → Agent — see `docs/PRODUCT.md`.

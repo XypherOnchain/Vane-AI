@@ -1,12 +1,5 @@
-import RadarPage from "../radar/page";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function TrendingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
-  const sp = await searchParams;
-  return RadarPage({ searchParams: Promise.resolve({ ...sp, mode: "trending" }) });
+export default function TrendingRedirect() {
+  redirect("/debug");
 }

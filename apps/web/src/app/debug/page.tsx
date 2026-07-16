@@ -83,10 +83,13 @@ export default function DebugWorkspacePage() {
   return (
     <div className="grid gap-8 px-4 py-8 md:grid-cols-[1fr_1.2fr] md:px-8">
       <section className="space-y-4">
-        <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">New workspace</h2>
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--color-accent)]">
+          Screen 1 · Workspace
+        </p>
+        <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold">New project</h2>
         <p className="text-sm text-[var(--color-muted)]">
-          Screen 1 of Vane Debug — connect a local repo path, Robinhood Chain, watch-only wallets,
-          and optional Telegram for failure alerts.
+          Connect a local repo path, chain, watch-only wallets, and optional Telegram for failure
+          alerts. Keys stay off the server.
         </p>
         <label className="block text-sm">
           Project name

@@ -1,10 +1,5 @@
-import Placeholder from "@/components/Placeholder";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <Placeholder
-      title="Alerts"
-      body="Deterministic alert rules with website + Telegram Intelligence Bot delivery. Wired after auth and alert engine Phase 9."
-    />
-  );
+export default function AlertsRedirect() {
+  redirect("/debug/memory");
 }

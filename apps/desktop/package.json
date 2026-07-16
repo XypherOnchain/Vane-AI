@@ -4,9 +4,8 @@
   "private": true,
   "description": "Vane AI desktop — downloadable crypto-native workspace (Electron)",
   "main": "dist-electron/main.js",
-  "type": "module",
   "scripts": {
-    "dev": "tsx scripts/dev.ts",
+    "dev": "node scripts/dev.mjs",
     "build:electron": "tsc -p tsconfig.electron.json",
     "build": "pnpm build:electron",
     "start": "electron .",
