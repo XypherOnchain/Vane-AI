@@ -2,7 +2,7 @@
   "name": "vane-ai",
   "private": true,
   "version": "0.1.0",
-  "description": "Vane AI — The intelligence layer for Robinhood Chain",
+  "description": "Vane AI — Crypto-native AI workspace (Cursor for on-chain)",
   "packageManager": "pnpm@10.29.3",
   "engines": {
     "node": ">=20"
@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "turbo run dev --parallel --filter=@vane/web --filter=@vane/api --filter=@vane/indexer --filter=@vane/worker",
     "dev:web": "turbo run dev --filter=@vane/web --filter=@vane/api",
+    "desktop": "pnpm --filter @vane/desktop dev",
+    "desktop:dist": "pnpm --filter @vane/desktop dist",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -29,5 +31,13 @@
     "vitest": "^3.0.9",
     "@eslint/js": "^9.22.0",
     "typescript-eslint": "^8.26.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller",
+      "esbuild",
+      "sharp"
+    ]
   }
 }

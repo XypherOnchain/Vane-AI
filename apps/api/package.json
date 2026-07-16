@@ -15,6 +15,7 @@
   "dependencies": {
     "@vane/chain": "workspace:*",
     "@vane/config": "workspace:*",
+    "@vane/project-graph": "workspace:*",
     "@vane/shared-types": "workspace:*",
     "cors": "^2.8.5",
     "express": "^4.21.2",

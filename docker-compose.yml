@@ -13,6 +13,7 @@ services:
       - ./infrastructure/sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
       - ./infrastructure/sql/002_pools.sql:/docker-entrypoint-initdb.d/002_pools.sql:ro
       - ./infrastructure/sql/003_launch_time.sql:/docker-entrypoint-initdb.d/003_launch_time.sql:ro
+      - ./infrastructure/sql/004_project_graph.sql:/docker-entrypoint-initdb.d/004_project_graph.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vane -d vane"]
       interval: 5s

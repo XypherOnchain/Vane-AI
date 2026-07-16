@@ -6,6 +6,7 @@ import { useState } from "react";
 import { GlobalSearch } from "./GlobalSearch";
 
 const nav = [
+  { href: "/debug", label: "Debug" },
   { href: "/radar", label: "Radar" },
   { href: "/new-pairs", label: "New Pairs" },
   { href: "/trending", label: "Trending" },
@@ -28,9 +29,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="font-[family-name:var(--font-display)] text-xl font-extrabold tracking-tight">
                 Vane
               </span>
-              <span className="text-xs text-[var(--color-muted)]">Robinhood Chain</span>
+              <span className="text-xs text-[var(--color-muted)]">Crypto workspace</span>
             </Link>
             <nav className="flex items-center gap-4 text-sm">
+              <Link
+                href="/debug"
+                className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
+              >
+                Debug
+              </Link>
               <Link
                 href="/radar"
                 className="text-[var(--color-muted)] hover:text-[var(--color-fg)]"
@@ -41,10 +48,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Ask Vane
               </Link>
               <Link
-                href="/radar"
+                href="/debug"
                 className="rounded-full bg-[var(--color-accent)] px-4 py-2 font-semibold text-[#04140d]"
               >
-                Explore
+                Open Debug
               </Link>
             </nav>
           </div>
@@ -118,9 +125,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1">{children}</main>
         <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[var(--color-line)] bg-[rgba(7,9,12,0.92)] backdrop-blur-xl md:hidden">
           {[
+            { href: "/debug", label: "Debug" },
             { href: "/radar", label: "Radar" },
             { href: "/ask", label: "Ask" },
-            { href: "/app/watchlists", label: "Watch" },
             { href: "/app/alerts", label: "Alerts" },
           ].map((i) => (
             <Link

@@ -22,9 +22,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vane — Know who is behind the token",
+  title: "Vane — Crypto-native AI workspace",
   description:
-    "The intelligence layer for Robinhood Chain. Trace wallets, detect hidden clusters, analyze developers, monitor every launch.",
+    "Debug transactions, understand contracts, build integrations and safely operate on-chain workflows — Cursor for crypto.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

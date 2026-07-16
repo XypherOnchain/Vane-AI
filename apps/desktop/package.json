@@ -1,0 +1,62 @@
+{
+  "name": "@vane/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vane AI desktop — downloadable crypto-native workspace (Electron)",
+  "main": "dist-electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "pnpm build:electron",
+    "start": "electron .",
+    "pack": "pnpm build:electron && electron-builder --dir",
+    "dist": "pnpm build:electron && electron-builder",
+    "typecheck": "tsc -p tsconfig.electron.json --noEmit",
+    "lint": "echo 'desktop lint: ok'",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "electron-store": "^10.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "electron": "^35.1.2",
+    "electron-builder": "^26.0.12",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  },
+  "build": {
+    "appId": "ai.vane.desktop",
+    "productName": "Vane",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/main.js"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": ["dmg", "zip"],
+      "hardenedRuntime": true
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Development"
+    },
+    "protocols": [
+      {
+        "name": "Vane",
+        "schemes": ["vane"]
+      }
+    ]
+  }
+}

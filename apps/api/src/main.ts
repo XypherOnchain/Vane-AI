@@ -14,6 +14,7 @@ import {
   searchIndexed,
 } from "./services/indexed.js";
 import { fetchOhlcv, fetchTrades } from "./services/market.js";
+import { debugRouter } from "./routes/debug.js";
 import {
   createAlert,
   createReport,
@@ -276,6 +277,9 @@ app.get("/v1/wallets/:address", async (req, res) => {
   if (!wallet) return res.status(404).json({ error: "Wallet not indexed", ...NOT_INDEXED });
   res.json(wallet);
 });
+
+// Phase 1 — Vane Debug (workspace, tx inspector, incidents, Telegram alert payloads)
+app.use("/v1/debug", debugRouter());
 
 app.post("/v1/ai/query", aiQuery);
 app.post("/v1/agent", aiQuery);
